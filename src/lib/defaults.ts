@@ -7,12 +7,22 @@ import type { AppSettings } from "../types";
 
 export const APP_VERSION = "0.1.0";
 
-/** Bootstrap relay set — just enough to find people's NIP-65 relay lists. */
+/**
+ * Default relay set — llama.garden's own relay list (from waifu-magnet-22.html
+ * / relays.txt), so this app works with real data out of the box. Still
+ * fully user-editable in Settings — this is a starting point, not a fixed
+ * trust root; see the "critical vs. non-critical infrastructure" framing
+ * in the project notes. If all of these become unreachable, the user can
+ * add a different relay in Settings with no code change required.
+ */
 export const DEFAULT_RELAYS: string[] = [
   "wss://nos.lol/",
-  "wss://relay.primal.net/",
-  "wss://nostr.mom/",
   "wss://relay.damus.io/",
+  "wss://relay.primal.net/",
+  "wss://nostr-01.yakihonne.com/",
+  "wss://nostr.mom/",
+  "wss://relay.mostr.pub",
+  "wss://no.str.cr",
   "wss://offchain.pub",
 ];
 
@@ -24,13 +34,20 @@ export const DEFAULT_BLOSSOM_SERVERS: string[] = [
 ];
 
 /**
- * Optional seed curators for the allowlist tier — equivalent in spirit to
- * llama.garden's two hardcoded NPUBS, but here they're just a starting
- * allowlist entry the user can remove in Settings > Filtering > Allowlist.
- * Empty by default: ship with no baked-in trust root, let the user add
- * their own or import a curator's list.
+ * Default allowlist — llama.garden's two curator npubs (hex-decoded), so
+ * the catalog isn't empty on first load. Unlike the original's hardcoded
+ * `const NPUBS`, this is just a starting value in Settings > Filtering >
+ * Allowlist: the user can remove, replace, or clear it entirely (an empty
+ * allowlist means the tier is not enforced — see filterPipeline.ts), and
+ * doing so requires no rebuild, unlike editing NPUBS in the original HTML.
+ *
+ *   npub1zyal4wt4f86rlgxwjzkmdmcr70ejee66z7crfmy5dpxyentzc0zsspedcr
+ *   npub1wajfudpyx3xudgrglj8jjfjnxmvyk2u0j3yknpsfss6z04rgcdqs7g50e5
  */
-export const DEFAULT_ALLOWLIST_PUBKEYS: string[] = [];
+export const DEFAULT_ALLOWLIST_PUBKEYS: string[] = [
+  "113bfab97549f43fa0ce90adb6ef03f3f32ce75a17b034ec94684c4ccd62c3c5",
+  "77649e3424344dc6a068fc8f29265336d84b2b8f9449698609843427d468c341",
+];
 
 export const DEFAULT_PUMPS_API_URL = "";
 

@@ -11,11 +11,28 @@ import type { NostrEvent } from "../types";
  * If the crypto can't run, the app fails closed (throws), not open.
  */
 export class RelayPool {
-  private pool = new SimplePool();
+  private pool: SimplePool;
   private relays: string[];
 
-  constructor(relays: string[]) {
+  constructor(relays: string[], onConnectionChange?: (connected: number, total: number) => void) {
     this.relays = relays;
+    // SimplePool's public constructor type only advertises enablePing /
+    // enableReconnect, but at runtime it forwards all options to
+    // AbstractSimplePool (see node_modules/nostr-tools/lib/esm/pool.js),
+    // which does support these connection-status callbacks. Cast to reach
+    // them without widening RelayPool's own public API.
+    this.pool = new SimplePool({
+      onRelayConnectionSuccess: () => onConnectionChange?.(this.countConnected(), this.relays.length),
+      onRelayConnectionFailure: () => onConnectionChange?.(this.countConnected(), this.relays.length),
+    } as ConstructorParameters<typeof SimplePool>[0]);
+  }
+
+  private countConnected(): number {
+    let n = 0;
+    for (const connected of this.pool.listConnectionStatus().values()) {
+      if (connected) n++;
+    }
+    return n;
   }
 
   setRelays(relays: string[]) {

@@ -29,11 +29,13 @@ export function useNostrCatalog() {
   const poolRef = useRef<RelayPool | null>(null);
 
   useEffect(() => {
-    const pool = new RelayPool(relays);
-    poolRef.current = pool;
-
     const store = useCatalogStore.getState();
     store.setRelayCounts(0, relays.length);
+
+    const pool = new RelayPool(relays, (connected, total) => {
+      useCatalogStore.getState().setRelayCounts(connected, total);
+    });
+    poolRef.current = pool;
 
     const unsubscribe = pool.subscribe(
       {
