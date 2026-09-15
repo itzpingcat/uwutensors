@@ -1,0 +1,133 @@
+:root {
+  --accent: #e879f9;
+  --accent-dim: #a21caf;
+  --bg: #0f0f14;
+  --bg-card: #1a1a22;
+  --border: #2a2a35;
+  --text: #e5e5ea;
+  --text-dim: #9090a0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#app { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+#top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+h1 { font-size: 1.4rem; margin: 0; }
+.ver-badge { color: var(--accent); font-size: 0.8em; }
+
+.top-right { display: flex; align-items: center; gap: 12px; }
+.stat { color: var(--text-dim); font-size: 0.9em; }
+
+#toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
+.search {
+  flex: 1; max-width: 400px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text);
+}
+.toolbar .stats { display: flex; gap: 12px; color: var(--text-dim); font-size: 0.9em; }
+
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+.card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
+}
+.card:hover { border-color: var(--accent-dim); }
+.card-title { font-weight: 600; }
+.card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { font-size: 0.75em; padding: 2px 8px; border-radius: 999px; background: var(--border); color: var(--text-dim); }
+.badge-quant { background: var(--accent-dim); color: white; }
+.card-meta { display: flex; gap: 10px; font-size: 0.8em; color: var(--text-dim); }
+.card-actions { display: flex; gap: 8px; margin-top: 4px; }
+.card-error { font-size: 0.8em; color: #f87171; }
+
+.btn {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent-dim);
+  background: var(--accent-dim); color: white; text-decoration: none; font-size: 0.85em;
+  cursor: pointer;
+}
+.btn-secondary { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-small { padding: 4px 8px; font-size: 0.8em; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; }
+
+.empty-state { color: var(--text-dim); padding: 40px; text-align: center; grid-column: 1 / -1; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+}
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative;
+}
+.settings-modal { max-width: 640px; }
+.modal-close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-dim); font-size: 1.4em; cursor: pointer; }
+.modal-fields { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 0.9em; }
+.modal-fields dt { color: var(--text-dim); }
+.modal-fields dd { margin: 0; word-break: break-all; }
+.modal-actions { margin-top: 16px; display: flex; gap: 8px; }
+
+section { margin: 20px 0; }
+section h3 { margin-bottom: 4px; }
+.hint { color: var(--text-dim); font-size: 0.82em; line-height: 1.4; margin: 4px 0; }
+.setting-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.setting-title { font-weight: 500; }
+.pubkey-list { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+.pubkey-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.8em; }
+.pubkey-row code { word-break: break-all; }
+.add-row { display: flex; gap: 8px; margin-top: 6px; }
+.add-row input { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+
+/* Banner */
+.banner {
+  display: none; align-items: center; gap: 12px; padding: 10px 16px; margin-bottom: 12px;
+  background: var(--accent-dim); border-radius: 8px; color: white; font-size: 0.9em;
+}
+.banner.show { display: flex; }
+.banner .msg { flex: 1; }
+.banner .close { background: none; border: none; color: white; font-size: 1.2em; cursor: pointer; }
+
+/* Toolbar */
+.toolbar-actions { display: flex; gap: 8px; }
+.stats-row { display: flex; gap: 16px; color: var(--text-dim); font-size: 0.85em; margin-bottom: 12px; }
+
+/* Forms (request / add-torrent modals) */
+.req-intro { color: var(--text-dim); font-size: 0.9em; }
+.field { margin: 14px 0; }
+.field label { display: block; font-size: 0.85em; font-weight: 500; margin-bottom: 4px; }
+.field .req { color: #f87171; }
+.field .opt { color: var(--text-dim); font-weight: 400; }
+.field input, .field textarea {
+  width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-family: inherit; font-size: 0.9em;
+}
+.seg-row { display: flex; }
+.seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; flex-wrap: wrap; }
+.seg button {
+  padding: 6px 12px; background: transparent; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: 0.85em; border-right: 1px solid var(--border);
+}
+.seg button:last-child { border-right: none; }
+.seg button.active { background: var(--accent-dim); color: white; }
+
+.pow-notice { color: var(--text-dim); font-size: 0.8em; margin: 10px 0; line-height: 1.4; }
+.pow-progress { margin: 10px 0; }
+.pow-bar { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.pow-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+.pow-text { font-size: 0.8em; color: var(--text-dim); margin-top: 4px; }
+.submit-btn { width: 100%; padding: 10px; margin-top: 8px; font-size: 0.95em; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
