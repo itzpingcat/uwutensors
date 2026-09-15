@@ -204,7 +204,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         </section>
 
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={resetToDefaults}>
+          <button className="btn-secondary" onClick={resetToDefaults}>
             Reset to defaults
           </button>
         </div>

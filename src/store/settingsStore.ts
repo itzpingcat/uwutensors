@@ -17,6 +17,15 @@ interface SettingsState {
 // Persisted to localStorage — this is deliberate: filter/relay/allowlist
 // config is per-user state that should survive reloads, unlike the
 // original HTML viewer which held everything in-memory only.
+//
+// `version` + `migrate` matter here: early builds persisted an empty
+// allowlist/relay default before llama.garden's real relays/curators were
+// added as defaults. Without a version bump, persist() silently keeps
+// loading that stale empty state forever and the new defaults never take
+// effect for anyone who already had the app open. Bumping SETTINGS_VERSION
+// forces exactly one migration for existing installs.
+const SETTINGS_VERSION = 1;
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -76,6 +85,36 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       resetToDefaults: () => set({ settings: DEFAULT_SETTINGS }),
     }),
-    { name: "uwutensors-settings" }
+    {
+      name: "uwutensors-settings",
+      version: SETTINGS_VERSION,
+      // Version 0 (unversioned) -> 1: relay/allowlist defaults changed from
+      // empty to llama.garden's real values. Anyone still on an untouched
+      // empty allowlist/relay set (i.e. they never customized it) gets
+      // migrated onto the new defaults; anyone who already added their own
+      // entries keeps them untouched.
+      migrate: (persisted) => {
+        const state = persisted as { settings: AppSettings } | undefined;
+        if (!state?.settings) return { settings: DEFAULT_SETTINGS };
+        const s = state.settings;
+        return {
+          settings: {
+            ...s,
+            relays: {
+              relays: s.relays?.relays?.length ? s.relays.relays : DEFAULT_SETTINGS.relays.relays,
+            },
+            filters: {
+              ...s.filters,
+              allowlist: {
+                ...s.filters?.allowlist,
+                pubkeys: s.filters?.allowlist?.pubkeys?.length
+                  ? s.filters.allowlist.pubkeys
+                  : DEFAULT_SETTINGS.filters.allowlist.pubkeys,
+              },
+            },
+          },
+        };
+      },
+    }
   )
 );

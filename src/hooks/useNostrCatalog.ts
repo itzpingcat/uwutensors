@@ -23,21 +23,34 @@ const LABEL_NAMESPACE = "llama.garden"; // kept for compat with existing curator
  * (allowlist/WoT/NIP-05/anti-spam) happens downstream in the filter
  * pipeline against every event's pubkey, so the allowlist can be edited
  * live in Settings without reopening subscriptions.
+ *
+ * The pool is created exactly once (empty dep array) and its relay set is
+ * updated in place via pool.setRelays() when settings change, instead of
+ * being torn down and recreated on every relay-list change. Recreating the
+ * pool on each change was the cause of the "connects to 5, then resets to
+ * 0" glitch: React StrictMode's mount->cleanup->mount double-invoke (dev
+ * only) and the settings store's async localStorage rehydration (dev and
+ * prod) both fire this effect a second time shortly after first mount, and
+ * a naive [relays] dependency recreated the WebSocket connections from
+ * scratch each time, visibly resetting the connected count to 0 mid-flight.
  */
 export function useNostrCatalog() {
-  const relays = useSettingsStore((s) => s.settings.relays.relays);
   const poolRef = useRef<RelayPool | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const relays = useSettingsStore((s) => s.settings.relays.relays);
 
+  // Mount/unmount exactly once. Relay changes are applied to the existing
+  // pool below, not by re-running this effect.
   useEffect(() => {
-    const store = useCatalogStore.getState();
-    store.setRelayCounts(0, relays.length);
+    const initialRelays = useSettingsStore.getState().settings.relays.relays;
+    useCatalogStore.getState().setRelayCounts(0, initialRelays.length);
 
-    const pool = new RelayPool(relays, (connected, total) => {
+    const pool = new RelayPool(initialRelays, (connected, total) => {
       useCatalogStore.getState().setRelayCounts(connected, total);
     });
     poolRef.current = pool;
 
-    const unsubscribe = pool.subscribe(
+    unsubscribeRef.current = pool.subscribe(
       {
         kinds: [
           KIND.TORRENT_LISTING,
@@ -51,9 +64,20 @@ export function useNostrCatalog() {
     );
 
     return () => {
-      unsubscribe();
+      unsubscribeRef.current?.();
       pool.close();
+      poolRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Apply relay-list changes to the already-running pool in place, so a
+  // settings edit (or a delayed persisted-store rehydration) adjusts which
+  // relays are connected without dropping and re-establishing every
+  // existing connection.
+  useEffect(() => {
+    poolRef.current?.setRelays(relays);
+    useCatalogStore.getState().setRelayCounts(poolRef.current?.getConnectedCount() ?? 0, relays.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relays.join(",")]);
 }

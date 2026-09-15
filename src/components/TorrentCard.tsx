@@ -76,7 +76,7 @@ export function TorrentCard({ listing, onOpen }: Props) {
             HuggingFace
           </a>
         )}
-        <button className="btn btn-secondary" onClick={handleDownload} disabled={downloadState === "verifying"}>
+        <button className="btn-secondary" onClick={handleDownload} disabled={downloadState === "verifying"}>
           {downloadState === "verifying" ? "Verifying…" : ".torrent"}
         </button>
       </div>

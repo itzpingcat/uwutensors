@@ -59,7 +59,7 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
           <a className="btn" href={listing.magnet}>
             Open magnet
           </a>
-          <button className="btn btn-secondary" onClick={() => setSeederModalOpen(true)}>
+          <button className="btn-secondary" onClick={() => setSeederModalOpen(true)}>
             Request seeders
           </button>
         </div>

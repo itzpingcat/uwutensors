@@ -24,9 +24,15 @@ export default function App() {
         </h1>
         <div className="top-right">
           <span className="stat">
-            {connectedRelays}/{totalRelays} relays
+            <span
+              className={
+                "conn-dot " +
+                (totalRelays === 0 ? "" : connectedRelays === 0 ? "err" : connectedRelays >= totalRelays ? "live" : "")
+              }
+            />
+            <b>{connectedRelays}</b>/{totalRelays} relays
           </span>
-          <button className="btn" onClick={() => setSettingsOpen(true)}>
+          <button className="btn-secondary" onClick={() => setSettingsOpen(true)}>
             Settings
           </button>
         </div>

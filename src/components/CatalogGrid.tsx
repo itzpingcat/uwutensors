@@ -23,17 +23,19 @@ export function CatalogGrid({ onPublished }: Props) {
   return (
     <>
       <div id="toolbar">
-        <input
-          className="search"
-          placeholder="Search models…"
-          value={filters.search}
-          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-        />
+        <div id="search-wrap">
+          <input
+            className="search"
+            placeholder="Search models…"
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          />
+        </div>
         <div className="toolbar-actions">
-          <button className="btn btn-secondary" onClick={() => setRequestOpen(true)}>
+          <button className="btn-secondary" onClick={() => setRequestOpen(true)}>
             Request a model
           </button>
-          <button className="btn" onClick={() => setAddOpen(true)}>
+          <button className="btn-secondary" onClick={() => setAddOpen(true)}>
             + Add torrent
           </button>
         </div>
