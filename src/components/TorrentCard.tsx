@@ -12,15 +12,18 @@ interface Props {
 export function TorrentCard({ listing, onOpen }: Props) {
   const [downloadState, setDownloadState] = useState<"idle" | "verifying" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
-  const pump = useCatalogStore((s) => s.pumpStatus.get(listing.infohash));
+  const seederInfo = useCatalogStore((s) => s.seederInfo.get(listing.infohash));
 
   const title = listing.displayName ?? listing.name;
-  // Original counts every pump entry as a seeder (pumpData.data.length in
-  // waifu-magnet-22.html), not just peers at 100%. A `percentDone >= 100`
-  // filter here was an invented, over-strict condition that made this
-  // always show 0 seeders in practice — pump entries are peers currently
-  // seeding/leeching via the pump fleet, not "fully downloaded" markers.
-  const seederCount = pump?.seeders.length ?? 0;
+  // seederInfo is the unified, source-labeled count (see useSeederCount):
+  // a direct wss:// tracker scrape when the torrent lists one and it
+  // responds ("tracker" — the decentralized, more trustworthy source),
+  // otherwise llama.garden's pump API as a fallback ("pump" — a single
+  // company's private fleet, not the whole swarm). We show which one it
+  // was so a pump-derived count isn't mistaken for an authoritative swarm
+  // count.
+  const seederCount = seederInfo?.seeders ?? 0;
+  const seederSource = seederInfo?.source;
 
   async function handleDownload(e: React.MouseEvent) {
     e.stopPropagation();
@@ -66,7 +69,11 @@ export function TorrentCard({ listing, onOpen }: Props) {
       </div>
       <div className="card-meta">
         <span>{humanSize(listing.totalSize)}</span>
-        <span>{seederCount} seeder{seederCount === 1 ? "" : "s"}</span>
+        <span title={seederSource === "tracker" ? "From a direct tracker scrape" : seederSource === "pump" ? "From llama.garden's pump fleet (not the full swarm)" : undefined}>
+          {seederCount} seeder{seederCount === 1 ? "" : "s"}
+          {seederSource === "tracker" && <sup className="seeder-source-tag">T</sup>}
+          {seederSource === "pump" && <sup className="seeder-source-tag pump">P</sup>}
+        </span>
         <span title={listing.infohash}>{shortHash(listing.infohash)}</span>
       </div>
       <div className="card-actions">

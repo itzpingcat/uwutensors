@@ -208,6 +208,14 @@ body {
 }
 .modal .pump-head { font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
 .modal .pump-status-line { font-size: 13px; color: var(--fg); font-family: var(--mono); }
+.modal .seeder-source-note { font-size: 11px; color: var(--muted2); margin-top: 6px; line-height: 1.4; }
+
+.seeder-source-tag {
+  font-size: 8px; font-weight: 700; margin-left: 2px; color: var(--green);
+  border: 1px solid var(--green); border-radius: 3px; padding: 0 2px;
+  vertical-align: super;
+}
+.seeder-source-tag.pump { color: var(--amber); border-color: var(--amber); }
 
 .modal .magnet-section {
   border: 1px solid var(--border); border-radius: var(--radius);

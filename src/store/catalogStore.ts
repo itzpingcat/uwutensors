@@ -4,6 +4,7 @@ import type {
   ModelRequest,
   ProfileMetadata,
   PumpStatus,
+  SeederInfo,
   SeederRequest,
   TorrentListing,
 } from "../types";
@@ -14,6 +15,7 @@ interface CatalogState {
   modelRequests: ModelRequest[];
   seederRequests: SeederRequest[];
   pumpStatus: Map<string, PumpStatus>; // keyed by infohash
+  seederInfo: Map<string, SeederInfo>; // keyed by infohash — unified, source-labeled seeder count for display
   latestClientAnnouncement: ClientAnnouncement | null;
   connectedRelays: number;
   totalRelays: number;
@@ -25,6 +27,7 @@ interface CatalogState {
   addModelRequest: (req: ModelRequest) => void;
   addSeederRequest: (req: SeederRequest) => void;
   setPumpStatus: (status: PumpStatus) => void;
+  setSeederInfo: (info: SeederInfo) => void;
   setClientAnnouncement: (ann: ClientAnnouncement) => void;
   setRelayCounts: (connected: number, total: number) => void;
   setRelayStatus: (status: Map<string, boolean>) => void;
@@ -38,6 +41,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   modelRequests: [],
   seederRequests: [],
   pumpStatus: new Map(),
+  seederInfo: new Map(),
   latestClientAnnouncement: null,
   connectedRelays: 0,
   totalRelays: 0,
@@ -71,6 +75,13 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       return { pumpStatus: next };
     }),
 
+  setSeederInfo: (info) =>
+    set((s) => {
+      const next = new Map(s.seederInfo);
+      next.set(info.infohash, info);
+      return { seederInfo: next };
+    }),
+
   setClientAnnouncement: (ann) => set({ latestClientAnnouncement: ann }),
   setRelayCounts: (connected, total) => set({ connectedRelays: connected, totalRelays: total }),
   setRelayStatus: (status) => set({ relayStatus: status }),
@@ -91,6 +102,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       modelRequests: [],
       seederRequests: [],
       pumpStatus: new Map(),
+      seederInfo: new Map(),
       latestClientAnnouncement: null,
     }),
 }));

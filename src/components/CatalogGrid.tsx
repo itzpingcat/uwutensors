@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useFilteredListings } from "../hooks/useFilteredListings";
 import { usePumpPolling } from "../hooks/usePumpPolling";
+import { useSeederCount, usePumpFallbackSeederInfo } from "../hooks/useSeederCount";
 import { TorrentCard } from "./TorrentCard";
 import { TorrentModal } from "./TorrentModal";
 import { RequestModelModal } from "./RequestModelModal";
@@ -19,6 +20,8 @@ export function CatalogGrid({ onPublished }: Props) {
   const [addOpen, setAddOpen] = useState(false);
 
   usePumpPolling(listings.map((l) => l.infohash));
+  useSeederCount(listings);
+  usePumpFallbackSeederInfo();
 
   return (
     <>

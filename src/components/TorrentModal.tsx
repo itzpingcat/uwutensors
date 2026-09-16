@@ -87,12 +87,17 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
   const [copyMagnetLabel, setCopyMagnetLabel] = useState("Copy magnet link");
   const [copyNpubLabel, setCopyNpubLabel] = useState("copy npub");
   const pump = useCatalogStore((s) => s.pumpStatus.get(listing.infohash));
+  const seederInfo = useCatalogStore((s) => s.seederInfo.get(listing.infohash));
   const submitterProfile = useProfile(listing.event.pubkey);
   const submitterNpub = nip19.npubEncode(listing.event.pubkey);
   const submitterName =
     submitterProfile?.displayName || submitterProfile?.name || shortHash(listing.event.pubkey, 16);
 
-  const seederCount = pump?.seeders.length ?? 0;
+  // seederInfo is the unified, source-labeled count — see useSeederCount
+  // for why: a direct wss:// tracker scrape when available (decentralized,
+  // the more trustworthy source), falling back to llama.garden's pump API
+  // (a single company's private fleet, not the whole swarm) otherwise.
+  const seederCount = seederInfo?.seeders ?? 0;
   const webseedCount = listing.webseeds.length;
   const downloads = pump?.downloads ?? 0;
 
@@ -110,8 +115,17 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
   const noSeeders = seederCount === 0;
 
   let seedLine = `${webseedCount} web seed${webseedCount !== 1 ? "s" : ""}`;
-  if (seederCount > 0) seedLine += ` + ${seederCount} seeder${seederCount !== 1 ? "s" : ""}`;
+  if (seederCount > 0) {
+    seedLine += ` + ${seederCount} seeder${seederCount !== 1 ? "s" : ""}`;
+    if (seederInfo?.leechers) seedLine += `, ${seederInfo.leechers} leecher${seederInfo.leechers !== 1 ? "s" : ""}`;
+  }
   if (downloads > 0) seedLine += ` · ${downloads} download${downloads !== 1 ? "s" : ""}`;
+  const seederSourceNote =
+    seederInfo?.source === "tracker"
+      ? "Seeder count from a direct BitTorrent tracker scrape."
+      : seederInfo?.source === "pump"
+        ? "Seeder count from llama.garden's pump fleet — not the full swarm, since this torrent lists no WebSocket tracker a browser can scrape directly."
+        : undefined;
 
   async function generateMagnet() {
     if (listing.urls.length === 0) {
@@ -146,6 +160,7 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
         <div className="pump-section">
           <div className="pump-head">Seed status</div>
           <div className="pump-status-line">{seedLine}</div>
+          {seederSourceNote && <div className="seeder-source-note">{seederSourceNote}</div>}
         </div>
 
         <div className="magnet-section">

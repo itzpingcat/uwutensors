@@ -105,6 +105,22 @@ export interface PumpStatus {
   downloads: number;
 }
 
+/**
+ * Unified seeder count for display, regardless of which source it came
+ * from. "tracker" means a real BitTorrent WebSocket tracker was scraped
+ * directly (decentralized — see src/lib/wsTracker.ts); "pump" means it
+ * came from llama.garden's pump API (a single centralized fleet, not the
+ * whole swarm); "none" means neither source had data. The UI shows this
+ * source so a pump-derived count isn't presented as more authoritative
+ * than it is.
+ */
+export interface SeederInfo {
+  infohash: string;
+  seeders: number;
+  leechers?: number;
+  source: "tracker" | "pump" | "none";
+}
+
 /** Parsed kind 0 profile metadata (NIP-01). Kept minimal — only what the UI uses. */
 export interface ProfileMetadata {
   pubkey: string;

@@ -274,9 +274,14 @@ export function SettingsPanel({
         <section>
           <h3>Pump / seeder-count API</h3>
           <p className="hint">
-            Optional, additive infrastructure — if disabled or unreachable, torrent listings and
-            downloads still work via BitTorrent and HF webseeds. This only affects the live
-            seeder/download count shown on each card.
+            Fallback only. Seeder counts are fetched by scraping a torrent's own WebSocket
+            tracker directly when it has one — decentralized, no third-party API involved. This
+            pump API is used only when a torrent lists no wss:// tracker, or that tracker doesn't
+            respond: it's llama.garden's own Transmission fleet, a single company's private view
+            of its own infrastructure, not the full swarm. Optional either way — if disabled or
+            unreachable, torrent listings and downloads still work via BitTorrent and HF webseeds;
+            this only affects the live seeder/download count shown on each card, and the card
+            always shows which source a count came from.
           </p>
           <label className="setting-row">
             <input
