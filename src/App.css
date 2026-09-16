@@ -109,8 +109,12 @@ body {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
 }
-.avatar-icon { border-radius: 50%; display: block; }
+.avatar-icon { border-radius: 50%; display: block; object-fit: cover; width: 22px; height: 22px; }
 .avatar-icon-out { opacity: 0.4; filter: grayscale(1); }
+.account-dropdown-error {
+  font-size: 11px; color: var(--red); font-family: var(--sans);
+  padding: 6px 10px 2px; max-width: 220px;
+}
 .account-dropdown {
   /* No gap between the button and the dropdown — a margin here creates a
      dead zone the mouse crosses between :hover targets, which closes the
@@ -143,6 +147,21 @@ body {
 }
 .settings-tab:hover { color: var(--fg); }
 .settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.nsec-row { margin-top: 16px; }
+.nsec-reveal {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; margin-top: 6px;
+}
+.nsec-reveal code {
+  flex: 1; font-family: var(--mono); font-size: 12px; color: var(--fg);
+  word-break: break-all; background: transparent;
+}
+.nsec-reveal code.nsec-blurred {
+  filter: blur(6px); user-select: none; transition: filter 0.15s ease;
+}
+.nsec-reveal code.nsec-blurred:hover { filter: blur(3px); }
 
 /* === TOOLBAR === */
 #toolbar {

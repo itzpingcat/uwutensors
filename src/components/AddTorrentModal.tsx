@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { KIND } from "../types";
 import { buildAddTorrentTags, type AddTorrentFields } from "../nostr/submit";
-import { getOrCreateLocalIdentity } from "../nostr/identity";
+import { getSigningPubkey } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { PowProgressBar } from "./PowProgressBar";
 
@@ -35,7 +35,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
       if (!proceed) return;
     }
 
-    const identity = getOrCreateLocalIdentity();
+    const pubkeyHex = await getSigningPubkey();
     const fields: AddTorrentFields = {
       url: url.trim(),
       name: name.trim(),
@@ -48,7 +48,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
       clientTool: clientTool.trim() || undefined,
       hfMatch,
     };
-    const tags = buildAddTorrentTags(identity.pubkeyHex, fields);
+    const tags = buildAddTorrentTags(pubkeyHex, fields);
 
     const result = await submit(KIND.TORRENT_LISTING, tags);
     if (result) {

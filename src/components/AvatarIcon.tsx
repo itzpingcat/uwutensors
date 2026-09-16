@@ -1,10 +1,36 @@
+import { useState } from "react";
+
 /**
- * Placeholder profile picture: a deterministic identicon-style grid derived
- * from the pubkey, since we don't fetch a real avatar (kind 0 metadata)
- * yet. Same seed always renders the same pattern/color, so a user's icon
- * stays visually stable across reloads without a network request.
+ * Account avatar: shows the logged-in identity's real kind 0 profile
+ * picture when one has been fetched (see useOwnProfile), otherwise falls
+ * back to a deterministic identicon-style placeholder derived from the
+ * pubkey — same seed always renders the same pattern/color, so the icon
+ * stays visually stable before a profile loads or if none exists.
  */
-export function AvatarIcon({ seed, loggedIn }: { seed: string; loggedIn: boolean }) {
+export function AvatarIcon({
+  seed,
+  picture,
+  loggedIn,
+}: {
+  seed: string;
+  picture?: string;
+  loggedIn: boolean;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (picture && !imgFailed) {
+    return (
+      <img
+        className={"avatar-icon" + (loggedIn ? "" : " avatar-icon-out")}
+        src={picture}
+        alt=""
+        width={22}
+        height={22}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
   const cells = buildCells(seed);
   const hue = hueFromSeed(seed);
 

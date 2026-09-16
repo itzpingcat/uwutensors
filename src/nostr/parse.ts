@@ -4,6 +4,7 @@ import type {
   ModelKind,
   ModelRequest,
   NostrEvent,
+  ProfileMetadata,
   QuantType,
   SeederRequest,
   TorrentListing,
@@ -103,6 +104,31 @@ export function parseApprovalLabel(
   );
   if (!isApprove) return [];
   return event.tags.filter((t) => t[0] === "e" && t[1]).map((t) => t[1]);
+}
+
+/**
+ * Parse a kind 0 (NIP-01 metadata) event's JSON content into a typed
+ * profile. Malformed/non-object content parses to null rather than
+ * throwing — a bad kind 0 from some relay shouldn't crash the app.
+ */
+export function parseProfileMetadata(event: NostrEvent): ProfileMetadata | null {
+  let data: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(event.content);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    data = parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  return {
+    pubkey: event.pubkey,
+    name: str(data.name),
+    displayName: str(data.display_name) ?? str(data.displayName),
+    picture: str(data.picture),
+    nip05: str(data.nip05),
+    updatedAt: event.created_at,
+  };
 }
 
 function numOrUndef(s: string | undefined): number | undefined {

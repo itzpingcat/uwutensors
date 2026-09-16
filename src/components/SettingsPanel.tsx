@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
-import { getOrCreateLocalIdentity } from "../nostr/identity";
+import { getLoginMode, getOrCreateLocalIdentity } from "../nostr/identity";
 
-export type SettingsTab = "keys" | "relays" | "filtering";
+export type SettingsTab = "keys" | "relays" | "filtering" | "pumps";
 
 export function SettingsPanel({
   onClose,
@@ -16,9 +16,23 @@ export function SettingsPanel({
   const [newPubkey, setNewPubkey] = useState("");
   const [newRelay, setNewRelay] = useState("");
   const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const [nsecRevealed, setNsecRevealed] = useState(false);
+  const [copyLabel, setCopyLabel] = useState("Copy");
 
   const f = settings.filters;
   const identity = getOrCreateLocalIdentity();
+  const loginMode = getLoginMode();
+
+  async function copyNsec() {
+    try {
+      await navigator.clipboard.writeText(identity.nsec);
+      setCopyLabel("Copied!");
+      setTimeout(() => setCopyLabel("Copy"), 1500);
+    } catch {
+      setCopyLabel("Copy failed");
+      setTimeout(() => setCopyLabel("Copy"), 1500);
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -41,22 +55,54 @@ export function SettingsPanel({
           >
             Filtering
           </button>
+          <button className={"settings-tab" + (tab === "pumps" ? " active" : "")} onClick={() => setTab("pumps")}>
+            Pumps
+          </button>
         </div>
 
         {tab === "keys" && (
           <section>
             <h3>Keys</h3>
-            <p className="hint">
-              Your local publishing identity. Used to sign requests, seeder pings, and torrent
-              listings you submit — not the same as Web-of-Trust scoring, which needs a real
-              NIP-07 signer with a social graph.
-            </p>
+            {loginMode === "nip07" ? (
+              <>
+                <p className="hint">
+                  Logged in via a NIP-07 browser extension. It holds your private key — this app
+                  never sees it, and only asks the extension to sign each event you publish.
+                </p>
+              </>
+            ) : (
+              <p className="hint">
+                {loginMode === "out"
+                  ? "Not logged in. Publishing (requests, seeder pings, torrent listings) still works using a local, anonymous key — nothing here is tied to an account until you log in."
+                  : "Local publishing identity, generated and stored in this browser. Used to sign requests, seeder pings, and torrent listings you submit — not the same as Web-of-Trust scoring, which needs a real NIP-07 signer with a social graph."}
+              </p>
+            )}
             <div className="modal-fields">
               <dt>Public key</dt>
               <dd>{identity.npub}</dd>
               <dt>Hex pubkey</dt>
               <dd>{identity.pubkeyHex}</dd>
             </div>
+
+            {loginMode !== "nip07" && (
+              <div className="nsec-row">
+                <div className="setting-title">Private key (nsec)</div>
+                <p className="hint">
+                  Never share this with anyone or paste it into a website — anyone with it can
+                  publish as you. It's blurred by default so it doesn't end up in a screenshot or
+                  screen-share by accident.
+                </p>
+                <div className="nsec-reveal">
+                  <code className={nsecRevealed ? "" : "nsec-blurred"}>{identity.nsec}</code>
+                  <button className="btn-small" onClick={() => setNsecRevealed((r) => !r)}>
+                    {nsecRevealed ? "Hide" : "Reveal"}
+                  </button>
+                  <button className="btn-small" onClick={copyNsec}>
+                    {copyLabel}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -224,7 +270,7 @@ export function SettingsPanel({
         </section>
         )}
 
-        {tab === "relays" && (
+        {tab === "pumps" && (
         <section>
           <h3>Pump / seeder-count API</h3>
           <p className="hint">

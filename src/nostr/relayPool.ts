@@ -135,6 +135,18 @@ export class RelayPool {
     };
   }
 
+  /**
+   * One-shot fetch of the latest event matching a filter (e.g. a kind 0
+   * profile for a specific pubkey), rather than a standing subscription.
+   * Used for on-demand lookups — profile metadata for whoever's currently
+   * logged in — where we don't want to keep a long-lived subscription open
+   * for every pubkey the app has ever seen.
+   */
+  async fetchEvent(filter: Filter): Promise<NostrEvent | null> {
+    const event = await this.pool.get(this.relays, filter);
+    return (event as NostrEvent) ?? null;
+  }
+
   async publish(event: NostrEvent): Promise<{ ok: string[]; failed: string[] }> {
     const results = await Promise.allSettled(this.pool.publish(this.relays, event));
     const ok: string[] = [];

@@ -1,6 +1,6 @@
 import { KIND, type TorrentListing } from "../types";
 import { buildSeederRequestTags } from "../nostr/submit";
-import { getOrCreateLocalIdentity } from "../nostr/identity";
+import { getSigningPubkey } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { PowProgressBar } from "./PowProgressBar";
 
@@ -14,9 +14,9 @@ export function RequestSeedersModal({ listing, onClose, onPublished }: Props) {
   const { submitting, pct, label, error, submit } = useMineAndPublish();
 
   async function handleSubmit() {
-    const identity = getOrCreateLocalIdentity();
+    const pubkeyHex = await getSigningPubkey();
     const tags = buildSeederRequestTags(
-      identity.pubkeyHex,
+      pubkeyHex,
       listing.event.id,
       listing.infohash,
       listing.displayName ?? listing.name

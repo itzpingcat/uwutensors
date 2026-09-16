@@ -34,6 +34,15 @@ const LABEL_NAMESPACE = "llama.garden"; // kept for compat with existing curator
  * a naive [relays] dependency recreated the WebSocket connections from
  * scratch each time, visibly resetting the connected count to 0 mid-flight.
  */
+// Module-level ref so other hooks (e.g. useOwnProfile) can issue one-shot
+// queries against the same live pool without threading it through props.
+// Set once useNostrCatalog mounts (App always mounts it before anything
+// that would need it).
+let sharedPool: RelayPool | null = null;
+export function getSharedRelayPool(): RelayPool | null {
+  return sharedPool;
+}
+
 export function useNostrCatalog() {
   const poolRef = useRef<RelayPool | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -50,6 +59,7 @@ export function useNostrCatalog() {
       useCatalogStore.getState().setRelayStatus(status);
     });
     poolRef.current = pool;
+    sharedPool = pool;
 
     unsubscribeRef.current = pool.subscribe(
       {
@@ -68,6 +78,7 @@ export function useNostrCatalog() {
       unsubscribeRef.current?.();
       pool.close();
       poolRef.current = null;
+      if (sharedPool === pool) sharedPool = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

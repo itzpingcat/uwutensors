@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNostrCatalog } from "./hooks/useNostrCatalog";
+import { useOwnProfile } from "./hooks/useOwnProfile";
 import { useCatalogStore } from "./store/catalogStore";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
 import { Banner } from "./components/Banner";
 import { APP_VERSION } from "./lib/defaults";
-import { getOrCreateLocalIdentity, isLoggedIn, logIn, logOut } from "./nostr/identity";
+import { getActivePubkey, getSigningPubkey, isLoggedIn, logIn, logOut } from "./nostr/identity";
 import { AvatarIcon } from "./components/AvatarIcon";
 import "./App.css";
 
@@ -15,26 +16,54 @@ export default function App() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [bannerMsg, setBannerMsg] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+  const [authError, setAuthError] = useState<string | null>(null);
+  // The pubkey actually signing right now. getActivePubkey() resolves
+  // synchronously for "local"/"out" but not for a NIP-07 login (the
+  // extension's pubkey can only be read async), so this is refreshed
+  // via getSigningPubkey() whenever login state changes.
+  const [activePubkey, setActivePubkey] = useState<string | null>(getActivePubkey());
   const connectedRelays = useCatalogStore((s) => s.connectedRelays);
   const totalRelays = useCatalogStore((s) => s.totalRelays);
   const relayStatus = useCatalogStore((s) => s.relayStatus);
+  const profiles = useCatalogStore((s) => s.profiles);
   const [relayTooltipOpen, setRelayTooltipOpen] = useState(false);
-  const identity = getOrCreateLocalIdentity();
+
+  useEffect(() => {
+    let cancelled = false;
+    getSigningPubkey().then((pk) => {
+      if (!cancelled) setActivePubkey(pk);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn]);
+
+  useOwnProfile(loggedIn ? activePubkey : null);
+  const ownProfile = activePubkey ? profiles.get(activePubkey) : undefined;
 
   function openTab(tab: SettingsTab) {
     setSettingsTab(tab);
     setAccountMenuOpen(false);
   }
 
-  function handleAuthClick() {
+  async function handleAuthClick() {
+    setAccountMenuOpen(false);
+    setAuthError(null);
     if (loggedIn) {
       logOut();
       setLoggedIn(false);
-    } else {
-      logIn();
-      setLoggedIn(true);
+      return;
     }
-    setAccountMenuOpen(false);
+    try {
+      const { pubkeyHex } = await logIn();
+      setActivePubkey(pubkeyHex);
+      setLoggedIn(true);
+    } catch (err) {
+      // NIP-07 extension present but the user declined the permission
+      // prompt, or it errored — stay logged out and surface why, rather
+      // than silently doing nothing (the original bug report).
+      setAuthError(err instanceof Error ? err.message : "Login failed or was declined.");
+    }
   }
 
   return (
@@ -79,7 +108,7 @@ export default function App() {
               onClick={() => setAccountMenuOpen((o) => !o)}
               aria-label="Account"
             >
-              <AvatarIcon seed={identity.pubkeyHex} loggedIn={loggedIn} />
+              <AvatarIcon seed={activePubkey ?? "anon"} picture={ownProfile?.picture} loggedIn={loggedIn} />
             </button>
             {accountMenuOpen && (
               <div className="account-dropdown">
@@ -93,10 +122,14 @@ export default function App() {
                   <button className="account-dropdown-item" onClick={() => openTab("filtering")}>
                     Filtering
                   </button>
+                  <button className="account-dropdown-item" onClick={() => openTab("pumps")}>
+                    Pumps
+                  </button>
                   <div className="account-dropdown-sep" />
                   <button className="account-dropdown-item" onClick={handleAuthClick}>
                     {loggedIn ? "Log Out" : "Log In"}
                   </button>
+                  {authError && <div className="account-dropdown-error">{authError}</div>}
                 </div>
               </div>
             )}

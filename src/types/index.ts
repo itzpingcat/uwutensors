@@ -105,6 +105,16 @@ export interface PumpStatus {
   downloads: number;
 }
 
+/** Parsed kind 0 profile metadata (NIP-01). Kept minimal — only what the UI uses. */
+export interface ProfileMetadata {
+  pubkey: string;
+  name?: string;
+  displayName?: string;
+  picture?: string;
+  nip05?: string;
+  updatedAt: number; // event created_at, so a newer kind 0 replaces an older one
+}
+
 // ---------------------------------------------------------------------------
 // Trust / verification model
 // ---------------------------------------------------------------------------

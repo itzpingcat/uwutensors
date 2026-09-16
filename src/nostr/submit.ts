@@ -1,8 +1,7 @@
-import { finalizeEvent } from "nostr-tools";
 import { sha256 } from "@noble/hashes/sha2.js";
 import type { NostrEvent } from "../types";
 import { APP_VERSION } from "../lib/defaults";
-import { getOrCreateLocalIdentity } from "./identity";
+import { getSigningPubkey, signWithActiveIdentity } from "./identity";
 import { runPow, type PowProgress, type PowResult } from "./runPow";
 import { RelayPool } from "./relayPool";
 
@@ -115,9 +114,16 @@ export interface MineAndPublishResult {
 
 /**
  * Mines PoW on (pubkey, created_at, kind, tags, content), signs the winning
- * event with the local identity, and publishes it to the given relay pool.
- * Mirrors the original's mine -> sign -> publishEvent pipeline for the
- * request/seeder/add-torrent forms.
+ * event with whichever identity is currently active — the logged-in NIP-07
+ * extension if there is one, otherwise the local key — and publishes it to
+ * the given relay pool. Mirrors the original's mine -> sign -> publishEvent
+ * pipeline for the request/seeder/add-torrent forms.
+ *
+ * Mining always happens locally (a NIP-07 extension only exposes signing,
+ * not the raw private key a mining loop would need), so we fetch the
+ * signing pubkey up front, mine against it, then hand the fully-formed
+ * event to signWithActiveIdentity for the actual signature — which is the
+ * only step that goes through the extension when logged in via NIP-07.
  */
 export async function mineAndPublish(
   pool: RelayPool,
@@ -126,11 +132,11 @@ export async function mineAndPublish(
   content: string,
   onProgress?: (p: PowProgress) => void
 ): Promise<MineAndPublishResult> {
-  const identity = getOrCreateLocalIdentity();
+  const pubkeyHex = await getSigningPubkey();
   const created_at = Math.floor(Date.now() / 1000);
 
   const pow = await runPow(
-    { pubkey: identity.pubkeyHex, created_at, kind, tags, content, durationMs: POW_DURATION_MS },
+    { pubkey: pubkeyHex, created_at, kind, tags, content, durationMs: POW_DURATION_MS },
     onProgress
   );
 
@@ -141,13 +147,7 @@ export async function mineAndPublish(
   const minedTags = tags.map((t) => [...t]);
   minedTags[minedTags.length - 1] = ["nonce", String(pow.nonce)];
 
-  // finalizeEvent recomputes id + signs; it will produce the same id as the
-  // worker's mined id as long as (pubkey, created_at, kind, tags, content)
-  // match exactly, which they do here.
-  const signed = finalizeEvent(
-    { kind, created_at, tags: minedTags, content },
-    identity.privKey
-  ) as NostrEvent;
+  const signed = await signWithActiveIdentity({ kind, created_at, tags: minedTags, content });
 
   const publish = await pool.publish(signed);
   return { event: signed, pow, publish };

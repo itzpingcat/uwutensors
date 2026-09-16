@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { ClientAnnouncement, ModelRequest, PumpStatus, SeederRequest, TorrentListing } from "../types";
+import type {
+  ClientAnnouncement,
+  ModelRequest,
+  ProfileMetadata,
+  PumpStatus,
+  SeederRequest,
+  TorrentListing,
+} from "../types";
 
 interface CatalogState {
   listings: Map<string, TorrentListing>; // keyed by infohash
@@ -11,6 +18,7 @@ interface CatalogState {
   connectedRelays: number;
   totalRelays: number;
   relayStatus: Map<string, boolean>; // per-relay url -> connected, for the relay-list hover tooltip
+  profiles: Map<string, ProfileMetadata>; // pubkey -> kind 0 metadata
 
   upsertListing: (listing: TorrentListing) => void;
   addApprovedId: (id: string) => void;
@@ -20,6 +28,7 @@ interface CatalogState {
   setClientAnnouncement: (ann: ClientAnnouncement) => void;
   setRelayCounts: (connected: number, total: number) => void;
   setRelayStatus: (status: Map<string, boolean>) => void;
+  setProfile: (profile: ProfileMetadata) => void;
   reset: () => void;
 }
 
@@ -33,6 +42,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   connectedRelays: 0,
   totalRelays: 0,
   relayStatus: new Map(),
+  profiles: new Map(),
 
   upsertListing: (listing) =>
     set((s) => {
@@ -64,6 +74,15 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   setClientAnnouncement: (ann) => set({ latestClientAnnouncement: ann }),
   setRelayCounts: (connected, total) => set({ connectedRelays: connected, totalRelays: total }),
   setRelayStatus: (status) => set({ relayStatus: status }),
+
+  setProfile: (profile) =>
+    set((s) => {
+      const existing = s.profiles.get(profile.pubkey);
+      if (existing && existing.updatedAt >= profile.updatedAt) return s;
+      const next = new Map(s.profiles);
+      next.set(profile.pubkey, profile);
+      return { profiles: next };
+    }),
 
   reset: () =>
     set({

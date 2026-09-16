@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { KIND } from "../types";
 import { buildModelRequestTags } from "../nostr/submit";
-import { getOrCreateLocalIdentity } from "../nostr/identity";
+import { getSigningPubkey } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { PowProgressBar } from "./PowProgressBar";
 
@@ -21,9 +21,9 @@ export function RequestModelModal({ onClose, onPublished }: Props) {
 
   async function handleSubmit() {
     if (!name.trim()) return;
-    const identity = getOrCreateLocalIdentity();
+    const pubkeyHex = await getSigningPubkey();
     const linkList = links.split("\n").map((s) => s.trim()).filter(Boolean);
-    const tags = buildModelRequestTags(identity.pubkeyHex, name.trim(), linkList, type, vram.trim() || undefined);
+    const tags = buildModelRequestTags(pubkeyHex, name.trim(), linkList, type, vram.trim() || undefined);
 
     const result = await submit(KIND.MODEL_REQUEST, tags);
     if (result) {
