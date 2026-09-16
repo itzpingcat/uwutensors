@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
+import { getOrCreateLocalIdentity } from "../nostr/identity";
 
-export function SettingsPanel({ onClose }: { onClose: () => void }) {
+export type SettingsTab = "keys" | "relays" | "filtering";
+
+export function SettingsPanel({
+  onClose,
+  initialTab = "filtering",
+}: {
+  onClose: () => void;
+  initialTab?: SettingsTab;
+}) {
   const { settings, update, updateFilters, addAllowlistPubkey, removeAllowlistPubkey, addRelay, removeRelay, resetToDefaults } =
     useSettingsStore();
   const [newPubkey, setNewPubkey] = useState("");
   const [newRelay, setNewRelay] = useState("");
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
 
   const f = settings.filters;
+  const identity = getOrCreateLocalIdentity();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -17,6 +28,69 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         </button>
         <h2>Settings</h2>
 
+        <div className="settings-tabs">
+          <button className={"settings-tab" + (tab === "keys" ? " active" : "")} onClick={() => setTab("keys")}>
+            Keys
+          </button>
+          <button className={"settings-tab" + (tab === "relays" ? " active" : "")} onClick={() => setTab("relays")}>
+            Relays
+          </button>
+          <button
+            className={"settings-tab" + (tab === "filtering" ? " active" : "")}
+            onClick={() => setTab("filtering")}
+          >
+            Filtering
+          </button>
+        </div>
+
+        {tab === "keys" && (
+          <section>
+            <h3>Keys</h3>
+            <p className="hint">
+              Your local publishing identity. Used to sign requests, seeder pings, and torrent
+              listings you submit — not the same as Web-of-Trust scoring, which needs a real
+              NIP-07 signer with a social graph.
+            </p>
+            <div className="modal-fields">
+              <dt>Public key</dt>
+              <dd>{identity.npub}</dd>
+              <dt>Hex pubkey</dt>
+              <dd>{identity.pubkeyHex}</dd>
+            </div>
+          </section>
+        )}
+
+        {tab === "relays" && (
+          <section>
+            <h3>Relays</h3>
+            <div className="pubkey-list">
+              {settings.relays.relays.map((r) => (
+                <div key={r} className="pubkey-row">
+                  <code>{r}</code>
+                  <button className="btn-small" onClick={() => removeRelay(r)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="add-row">
+              <input placeholder="wss://relay.example.com" value={newRelay} onChange={(e) => setNewRelay(e.target.value)} />
+              <button
+                className="btn-small"
+                onClick={() => {
+                  if (newRelay.trim()) {
+                    addRelay(newRelay.trim());
+                    setNewRelay("");
+                  }
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </section>
+        )}
+
+        {tab === "filtering" && (
         <section>
           <h3>Filtering</h3>
           <p className="hint">
@@ -148,35 +222,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             </select>
           </label>
         </section>
+        )}
 
-        <section>
-          <h3>Relays</h3>
-          <div className="pubkey-list">
-            {settings.relays.relays.map((r) => (
-              <div key={r} className="pubkey-row">
-                <code>{r}</code>
-                <button className="btn-small" onClick={() => removeRelay(r)}>
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="add-row">
-            <input placeholder="wss://relay.example.com" value={newRelay} onChange={(e) => setNewRelay(e.target.value)} />
-            <button
-              className="btn-small"
-              onClick={() => {
-                if (newRelay.trim()) {
-                  addRelay(newRelay.trim());
-                  setNewRelay("");
-                }
-              }}
-            >
-              Add
-            </button>
-          </div>
-        </section>
-
+        {tab === "relays" && (
         <section>
           <h3>Pump / seeder-count API</h3>
           <p className="hint">
@@ -202,6 +250,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </section>
+        )}
 
         <div className="modal-actions">
           <button className="btn-secondary" onClick={resetToDefaults}>

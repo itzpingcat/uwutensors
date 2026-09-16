@@ -2,19 +2,38 @@ import { useState } from "react";
 import { useNostrCatalog } from "./hooks/useNostrCatalog";
 import { useCatalogStore } from "./store/catalogStore";
 import { CatalogGrid } from "./components/CatalogGrid";
-import { SettingsPanel } from "./components/SettingsPanel";
+import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
 import { Banner } from "./components/Banner";
 import { APP_VERSION } from "./lib/defaults";
+import { isLoggedIn, logIn, logOut } from "./nostr/identity";
 import "./App.css";
 
 export default function App() {
   useNostrCatalog();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [bannerMsg, setBannerMsg] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const connectedRelays = useCatalogStore((s) => s.connectedRelays);
   const totalRelays = useCatalogStore((s) => s.totalRelays);
   const relayStatus = useCatalogStore((s) => s.relayStatus);
   const [relayTooltipOpen, setRelayTooltipOpen] = useState(false);
+
+  function openTab(tab: SettingsTab) {
+    setSettingsTab(tab);
+    setAccountMenuOpen(false);
+  }
+
+  function handleAuthClick() {
+    if (loggedIn) {
+      logOut();
+      setLoggedIn(false);
+    } else {
+      logIn();
+      setLoggedIn(true);
+    }
+    setAccountMenuOpen(false);
+  }
 
   return (
     <div id="app">
@@ -48,9 +67,32 @@ export default function App() {
               </div>
             )}
           </span>
-          <button className="btn-secondary" onClick={() => setSettingsOpen(true)}>
-            Settings
-          </button>
+          <span
+            className="account-menu-wrap"
+            onMouseEnter={() => setAccountMenuOpen(true)}
+            onMouseLeave={() => setAccountMenuOpen(false)}
+          >
+            <button className="btn-secondary" onClick={() => setAccountMenuOpen((o) => !o)}>
+              Account
+            </button>
+            {accountMenuOpen && (
+              <div className="account-dropdown">
+                <button className="account-dropdown-item" onClick={() => openTab("keys")}>
+                  Keys
+                </button>
+                <button className="account-dropdown-item" onClick={() => openTab("relays")}>
+                  Relays
+                </button>
+                <button className="account-dropdown-item" onClick={() => openTab("filtering")}>
+                  Filtering
+                </button>
+                <div className="account-dropdown-sep" />
+                <button className="account-dropdown-item" onClick={handleAuthClick}>
+                  {loggedIn ? "Log Out" : "Log In"}
+                </button>
+              </div>
+            )}
+          </span>
         </div>
       </header>
 
@@ -58,7 +100,7 @@ export default function App() {
         <CatalogGrid onPublished={setBannerMsg} />
       </main>
 
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsTab && <SettingsPanel initialTab={settingsTab} onClose={() => setSettingsTab(null)} />}
     </div>
   );
 }

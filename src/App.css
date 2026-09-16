@@ -103,6 +103,33 @@ body {
 .relay-tooltip-row .conn-dot { flex: none; }
 .relay-tooltip-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.account-menu-wrap { position: relative; display: inline-block; }
+.account-dropdown {
+  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 50;
+  background: var(--surface2); border: 1px solid var(--border-hi);
+  border-radius: 8px; padding: 6px; min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.account-dropdown-item {
+  background: transparent; border: none; color: var(--fg);
+  font-family: var(--sans); font-size: 13px; text-align: left;
+  padding: 8px 10px; border-radius: 5px; cursor: pointer;
+  text-transform: none;
+}
+.account-dropdown-item:hover { background: var(--surface); color: var(--accent); }
+.account-dropdown-sep { height: 1px; background: var(--border); margin: 4px 2px; }
+
+.settings-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.settings-tab {
+  background: transparent; border: none; color: var(--muted);
+  font-family: var(--mono); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 8px 12px; cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.settings-tab:hover { color: var(--fg); }
+.settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
 /* === TOOLBAR === */
 #toolbar {
   display: flex; gap: 10px; padding: 14px 24px; align-items: center;

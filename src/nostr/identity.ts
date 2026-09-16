@@ -15,6 +15,7 @@ import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
  */
 
 const STORAGE_KEY = "uwutensors-local-nsec";
+const LOGGED_OUT_KEY = "uwutensors-logged-out";
 
 export interface LocalIdentity {
   privKey: Uint8Array;
@@ -46,4 +47,29 @@ export function getOrCreateLocalIdentity(): LocalIdentity {
   const pubkeyHex = getPublicKey(privKey);
   cached = { privKey, pubkeyHex, npub: nip19.npubEncode(pubkeyHex) };
   return cached;
+}
+
+/**
+ * "Logged in" here means the user has an active identity they've chosen to
+ * use — either a NIP-07 extension signer, or the auto-generated local key
+ * once they've explicitly acknowledged it (or just never logged out). There
+ * is always a local key sitting in storage (getOrCreateLocalIdentity keeps
+ * publishing/PoW working regardless), but the account UI treats the user as
+ * "logged out" once they explicitly log out, until they log back in.
+ */
+export function isLoggedIn(): boolean {
+  return localStorage.getItem(LOGGED_OUT_KEY) !== "1";
+}
+
+export function logOut(): void {
+  localStorage.setItem(LOGGED_OUT_KEY, "1");
+}
+
+export function logIn(): void {
+  localStorage.removeItem(LOGGED_OUT_KEY);
+}
+
+/** True if a NIP-07 browser extension signer (Alby, nos2x, etc.) is present. */
+export function hasNip07(): boolean {
+  return typeof window !== "undefined" && !!(window as unknown as { nostr?: unknown }).nostr;
 }
