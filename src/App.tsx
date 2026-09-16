@@ -5,7 +5,8 @@ import { CatalogGrid } from "./components/CatalogGrid";
 import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
 import { Banner } from "./components/Banner";
 import { APP_VERSION } from "./lib/defaults";
-import { isLoggedIn, logIn, logOut } from "./nostr/identity";
+import { getOrCreateLocalIdentity, isLoggedIn, logIn, logOut } from "./nostr/identity";
+import { AvatarIcon } from "./components/AvatarIcon";
 import "./App.css";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
   const totalRelays = useCatalogStore((s) => s.totalRelays);
   const relayStatus = useCatalogStore((s) => s.relayStatus);
   const [relayTooltipOpen, setRelayTooltipOpen] = useState(false);
+  const identity = getOrCreateLocalIdentity();
 
   function openTab(tab: SettingsTab) {
     setSettingsTab(tab);
@@ -72,24 +74,30 @@ export default function App() {
             onMouseEnter={() => setAccountMenuOpen(true)}
             onMouseLeave={() => setAccountMenuOpen(false)}
           >
-            <button className="btn-secondary" onClick={() => setAccountMenuOpen((o) => !o)}>
-              Account
+            <button
+              className="btn-secondary account-btn"
+              onClick={() => setAccountMenuOpen((o) => !o)}
+              aria-label="Account"
+            >
+              <AvatarIcon seed={identity.pubkeyHex} loggedIn={loggedIn} />
             </button>
             {accountMenuOpen && (
               <div className="account-dropdown">
-                <button className="account-dropdown-item" onClick={() => openTab("keys")}>
-                  Keys
-                </button>
-                <button className="account-dropdown-item" onClick={() => openTab("relays")}>
-                  Relays
-                </button>
-                <button className="account-dropdown-item" onClick={() => openTab("filtering")}>
-                  Filtering
-                </button>
-                <div className="account-dropdown-sep" />
-                <button className="account-dropdown-item" onClick={handleAuthClick}>
-                  {loggedIn ? "Log Out" : "Log In"}
-                </button>
+                <div className="account-dropdown-menu">
+                  <button className="account-dropdown-item" onClick={() => openTab("keys")}>
+                    Keys
+                  </button>
+                  <button className="account-dropdown-item" onClick={() => openTab("relays")}>
+                    Relays
+                  </button>
+                  <button className="account-dropdown-item" onClick={() => openTab("filtering")}>
+                    Filtering
+                  </button>
+                  <div className="account-dropdown-sep" />
+                  <button className="account-dropdown-item" onClick={handleAuthClick}>
+                    {loggedIn ? "Log Out" : "Log In"}
+                  </button>
+                </div>
               </div>
             )}
           </span>

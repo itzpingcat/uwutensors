@@ -104,8 +104,22 @@ body {
 .relay-tooltip-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .account-menu-wrap { position: relative; display: inline-block; }
+.account-btn {
+  padding: 4px !important; width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.avatar-icon { border-radius: 50%; display: block; }
+.avatar-icon-out { opacity: 0.4; filter: grayscale(1); }
 .account-dropdown {
-  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 50;
+  /* No gap between the button and the dropdown — a margin here creates a
+     dead zone the mouse crosses between :hover targets, which closes the
+     menu before it's reached. The padding-top on this element (rather
+     than a margin) keeps the hoverable area contiguous with the button
+     while still visually offsetting the dropdown box below it. */
+  position: absolute; top: 100%; right: 0; padding-top: 6px; z-index: 50;
+}
+.account-dropdown-menu {
   background: var(--surface2); border: 1px solid var(--border-hi);
   border-radius: 8px; padding: 6px; min-width: 160px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
