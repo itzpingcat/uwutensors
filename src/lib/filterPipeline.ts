@@ -30,6 +30,8 @@ export interface ListingTrustContext {
   hasSignedInIdentity: boolean;
   powBits: number; // leading zero bits of event.id
   metadataCompleteness: number; // 0-100, computed from tag presence
+  hasProfilePicture?: boolean; // resolved elsewhere from the author's kind 0 — undefined = profile not fetched yet
+  hasProfileName?: boolean; // same, for name/display_name
 }
 
 export interface FilterResult {
@@ -78,26 +80,64 @@ function checkAntiSpam(
   return score >= settings.threshold;
 }
 
+/**
+ * Weak on its own — trivially fakeable, proves nothing about identity or
+ * intent — but a throwaway/spam account very often skips profile setup
+ * entirely, so combined with the real tiers this filters out the laziest
+ * ones. Treated the same as the other combining tiers: unresolved (profile
+ * not fetched yet) is skipped, not failed, same reasoning as NIP-05/WoT.
+ */
+function checkProfileBasics(
+  requireProfileBasics: boolean,
+  ctx: ListingTrustContext
+): boolean | undefined {
+  if (!requireProfileBasics) return undefined;
+  if (ctx.hasProfilePicture === undefined || ctx.hasProfileName === undefined) return undefined;
+  return ctx.hasProfilePicture && ctx.hasProfileName;
+}
+
 export function evaluateListing(
   listing: TorrentListing,
   settings: FilterSettings,
   ctx: ListingTrustContext
 ): FilterResult {
+  // Allowlist is a hard, independent gate, not one more vote in the
+  // ANY/ALL combine below: "I trust this specific publisher" doesn't mean
+  // "...or any listing that happens to pass some other, unrelated tier."
+  // It used to sit in the same `checks` array as NIP-05/WoT/anti-spam,
+  // which meant enabling ANY combine mode plus the allowlist plus one
+  // other tier could let a non-allowlisted author's listing through just
+  // by passing that other tier — defeating the entire point of having an
+  // allowlist. Now: if it's enabled and non-empty, it's checked first and
+  // is decisive on its own, before ANY/ALL is even considered.
+  const allowlistResult = checkAllowlist(listing.event, settings.allowlist);
+  if (allowlistResult === false) {
+    return { visible: false, passedTiers: [], failedTiers: ["allowlist"], skippedTiers: [] };
+  }
+
   const checks: Array<[string, boolean | undefined]> = [
-    ["allowlist", checkAllowlist(listing.event, settings.allowlist)],
     ["nip05", checkNip05(settings, ctx)],
     ["webOfTrust", checkWebOfTrust(settings.webOfTrust, ctx)],
     ["antiSpam", checkAntiSpam(settings.antiSpam, ctx)],
+    ["profileBasics", checkProfileBasics(settings.requireProfileBasics, ctx)],
   ];
 
-  const passedTiers: string[] = [];
+  const passedTiers: string[] = allowlistResult === true ? ["allowlist"] : [];
   const failedTiers: string[] = [];
-  const skippedTiers: string[] = [];
+  const skippedTiers: string[] = allowlistResult === undefined ? ["allowlist"] : [];
 
   for (const [name, result] of checks) {
     if (result === undefined) skippedTiers.push(name);
     else if (result) passedTiers.push(name);
     else failedTiers.push(name);
+  }
+
+  // An allowlist pass already earned visibility on its own (it's the
+  // strongest signal available — see the module doc above) regardless of
+  // what the other tiers say, so it short-circuits ANY/ALL the same way a
+  // failure above short-circuits to hidden.
+  if (allowlistResult === true) {
+    return { visible: true, passedTiers, failedTiers, skippedTiers };
   }
 
   const evaluated = passedTiers.length + failedTiers.length;

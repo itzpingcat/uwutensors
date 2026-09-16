@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { KIND } from "../types";
 import { buildAddTorrentTags, type AddTorrentFields } from "../nostr/submit";
-import { getSigningPubkey } from "../nostr/identity";
+import { getSigningPubkey, isLoggedIn } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { PowProgressBar } from "./PowProgressBar";
 
@@ -28,6 +28,10 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
 
   async function handleSubmit() {
     if (!url.trim() || !name.trim()) return;
+    // Defense in depth — CatalogGrid's toolbar button already refuses to
+    // open this modal when logged out, but guard the actual publish too in
+    // case this is ever reached another way.
+    if (!isLoggedIn()) return;
     if (!hf.trim()) {
       const proceed = window.confirm(
         "No HuggingFace link provided. This is strongly suggested so others can verify the torrent. Continue anyway?"

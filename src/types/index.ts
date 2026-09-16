@@ -187,6 +187,15 @@ export interface FilterSettings {
     enabled: boolean;
     pubkeys: string[];
   };
+  /**
+   * Requires the publisher's kind 0 to have both a picture and a
+   * name/display_name set. Weak on its own (trivial to fake — anyone can
+   * put anything in a kind 0), but combines with the real tiers above to
+   * filter out the laziest throwaway accounts, which very often skip
+   * profile setup entirely. Combines via combineMode like the other
+   * non-allowlist tiers.
+   */
+  requireProfileBasics: boolean;
   /** How multiple enabled tiers combine. */
   combineMode: "any" | "all";
 }

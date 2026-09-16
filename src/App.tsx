@@ -178,7 +178,7 @@ export default function App() {
       </header>
 
       <main id="content">
-        <CatalogGrid onPublished={setBannerMsg} />
+        <CatalogGrid onPublished={setBannerMsg} onRequireLogin={() => setLoginModalOpen(true)} />
       </main>
 
       {settingsTab && <SettingsPanel initialTab={settingsTab} onClose={() => setSettingsTab(null)} />}

@@ -190,10 +190,27 @@ export function SettingsPanel({
         <section>
           <h3>Filtering</h3>
           <p className="hint">
-            Each tier below answers a different question. Only HF verification checks whether a
-            torrent's contents actually match what it claims — the rest are provenance signals,
-            not proof.
+            Each tier below is independent and answers a different question — there's no single
+            master switch. Turning off anti-spam alone, for example, doesn't disable NIP-05 or
+            Web of Trust if those are also on: every enabled tier gates the grid on its own. Only
+            HF verification checks whether a torrent's contents actually match what it claims —
+            the rest are provenance signals, not proof. Allowlist further down is a special case:
+            it doesn't combine with the others at all — see the note above it.
           </p>
+          <button
+            className="btn-small"
+            onClick={() =>
+              updateFilters({
+                requireNip05: false,
+                webOfTrust: { ...f.webOfTrust, enabled: false },
+                antiSpam: { ...f.antiSpam, enabled: false },
+                allowlist: { ...f.allowlist, enabled: false },
+                requireProfileBasics: false,
+              })
+            }
+          >
+            Disable all filtering
+          </button>
 
           <label className="setting-row">
             <input
@@ -262,6 +279,40 @@ export function SettingsPanel({
             </div>
           </label>
 
+          <label className="setting-row">
+            <input
+              type="checkbox"
+              checked={f.requireProfileBasics}
+              onChange={(e) => updateFilters({ requireProfileBasics: e.target.checked })}
+            />
+            <div>
+              <div className="setting-title">Require a profile picture and name</div>
+              <div className="hint">
+                Hides listings from publishers whose kind 0 has no picture or no name/display name
+                set. Weak on its own — anyone can fill these in with anything — but throwaway/spam
+                accounts very often skip profile setup entirely, so this filters out the laziest
+                ones when combined with the tiers above.
+              </div>
+            </div>
+          </label>
+
+          <label className="setting-row">
+            <span>Combine tiers with</span>
+            <select
+              value={f.combineMode}
+              onChange={(e) => updateFilters({ combineMode: e.target.value as "any" | "all" })}
+            >
+              <option value="any">ANY (pass if any enabled tier passes)</option>
+              <option value="all">ALL (must pass every enabled tier)</option>
+            </select>
+          </label>
+          <p className="hint">
+            ANY/ALL only combines the tiers above (NIP-05, Web of Trust, anti-spam). Allowlist
+            below is separate and always decisive on its own: if it's enabled and non-empty, being
+            on it always shows a listing, and NOT being on it always hides one — regardless of
+            ANY/ALL or how the other tiers score it.
+          </p>
+
           <div className="setting-row">
             <input
               type="checkbox"
@@ -306,17 +357,6 @@ export function SettingsPanel({
               </div>
             </div>
           </div>
-
-          <label className="setting-row">
-            <span>Combine tiers with</span>
-            <select
-              value={f.combineMode}
-              onChange={(e) => updateFilters({ combineMode: e.target.value as "any" | "all" })}
-            >
-              <option value="any">ANY (pass if any enabled tier passes)</option>
-              <option value="all">ALL (must pass every enabled tier)</option>
-            </select>
-          </label>
         </section>
         )}
 

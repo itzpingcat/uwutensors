@@ -32,7 +32,11 @@ interface SettingsState {
 // enabled by default (same "additive, not critical" framing as the pump
 // fleet — safe to enable by default since a failure here only affects
 // the seeder/download counts on cards, not the catalog or downloads).
-const SETTINGS_VERSION = 2;
+// v3: added filters.requireProfileBasics (new field, defaults to false —
+// this bump exists mainly for clarity/documentation, since a genuinely
+// missing boolean field on old persisted state is already undefined,
+// which behaves identically to false everywhere it's read).
+const SETTINGS_VERSION = 3;
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -139,6 +143,7 @@ export const useSettingsStore = create<SettingsState>()(
                   ? s.filters.allowlist.pubkeys
                   : DEFAULT_SETTINGS.filters.allowlist.pubkeys,
               },
+              requireProfileBasics: s.filters?.requireProfileBasics ?? DEFAULT_SETTINGS.filters.requireProfileBasics,
             },
             // Only fill in the pump API URL if it was never set (still
             // empty) — an empty apiUrl means "user never touched this",

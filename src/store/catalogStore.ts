@@ -21,6 +21,7 @@ interface CatalogState {
   totalRelays: number;
   relayStatus: Map<string, boolean>; // per-relay url -> connected, for the relay-list hover tooltip
   profiles: Map<string, ProfileMetadata>; // pubkey -> kind 0 metadata
+  nip05Verified: Map<string, boolean>; // pubkey -> whether their claimed NIP-05 identifier actually resolves to them
 
   upsertListing: (listing: TorrentListing) => void;
   addApprovedId: (id: string) => void;
@@ -32,6 +33,7 @@ interface CatalogState {
   setRelayCounts: (connected: number, total: number) => void;
   setRelayStatus: (status: Map<string, boolean>) => void;
   setProfile: (profile: ProfileMetadata) => void;
+  setNip05Verified: (pubkey: string, verified: boolean) => void;
   reset: () => void;
 }
 
@@ -47,6 +49,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   totalRelays: 0,
   relayStatus: new Map(),
   profiles: new Map(),
+  nip05Verified: new Map(),
 
   upsertListing: (listing) =>
     set((s) => {
@@ -93,6 +96,14 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       const next = new Map(s.profiles);
       next.set(profile.pubkey, profile);
       return { profiles: next };
+    }),
+
+  setNip05Verified: (pubkey, verified) =>
+    set((s) => {
+      if (s.nip05Verified.get(pubkey) === verified) return s;
+      const next = new Map(s.nip05Verified);
+      next.set(pubkey, verified);
+      return { nip05Verified: next };
     }),
 
   reset: () =>

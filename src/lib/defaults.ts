@@ -81,6 +81,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       enabled: true,
       pubkeys: DEFAULT_ALLOWLIST_PUBKEYS,
     },
+    requireProfileBasics: false,
     combineMode: "any",
   },
   relays: {
