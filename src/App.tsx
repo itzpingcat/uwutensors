@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNostrCatalog } from "./hooks/useNostrCatalog";
 import { useOwnProfile } from "./hooks/useProfile";
 import { useCatalogStore } from "./store/catalogStore";
@@ -6,17 +6,24 @@ import { CatalogGrid } from "./components/CatalogGrid";
 import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
 import { Banner } from "./components/Banner";
 import { APP_VERSION } from "./lib/defaults";
-import { getActivePubkey, getSigningPubkey, isLoggedIn, logIn, logOut } from "./nostr/identity";
+import { getActivePubkey, getSigningPubkey, isLoggedIn, logOut } from "./nostr/identity";
 import { AvatarIcon } from "./components/AvatarIcon";
+import { LoginModal } from "./components/LoginModal";
 import "./App.css";
 
 export default function App() {
   useNostrCatalog();
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  // Whether the dropdown was opened by a click (as opposed to a hover) —
+  // a clicked-open dropdown stays open when the mouse leaves it and only
+  // closes on an explicit outside click, matching normal menu behavior.
+  // A hover-opened one keeps the old close-on-mouse-leave behavior.
+  const [accountMenuPinned, setAccountMenuPinned] = useState(false);
+  const accountMenuRef = useRef<HTMLSpanElement | null>(null);
   const [bannerMsg, setBannerMsg] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   // The pubkey actually signing right now. getActivePubkey() resolves
   // synchronously for "local"/"out" but not for a NIP-07 login (the
   // extension's pubkey can only be read async), so this is refreshed
@@ -42,29 +49,44 @@ export default function App() {
   useOwnProfile(loggedIn ? activePubkey : null);
   const ownProfile = activePubkey ? profiles.get(activePubkey) : undefined;
 
-  function openTab(tab: SettingsTab) {
-    setSettingsTab(tab);
+  // A click-pinned dropdown only closes on an outside click, not on
+  // mouse-leave (see accountMenuPinned above).
+  useEffect(() => {
+    if (!accountMenuOpen || !accountMenuPinned) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+        setAccountMenuPinned(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [accountMenuOpen, accountMenuPinned]);
+
+  function closeAccountMenu() {
     setAccountMenuOpen(false);
+    setAccountMenuPinned(false);
   }
 
-  async function handleAuthClick() {
-    setAccountMenuOpen(false);
-    setAuthError(null);
+  function openTab(tab: SettingsTab) {
+    setSettingsTab(tab);
+    closeAccountMenu();
+  }
+
+  function handleAuthClick() {
+    closeAccountMenu();
     if (loggedIn) {
       logOut();
       setLoggedIn(false);
       return;
     }
-    try {
-      const { pubkeyHex } = await logIn();
-      setActivePubkey(pubkeyHex);
-      setLoggedIn(true);
-    } catch (err) {
-      // NIP-07 extension present but the user declined the permission
-      // prompt, or it errored — stay logged out and surface why, rather
-      // than silently doing nothing (the original bug report).
-      setAuthError(err instanceof Error ? err.message : "Login failed or was declined.");
-    }
+    setLoginModalOpen(true);
+  }
+
+  function handleLoggedIn(pubkeyHex: string) {
+    setActivePubkey(pubkeyHex);
+    setLoggedIn(true);
+    setLoginModalOpen(false);
   }
 
   return (
@@ -100,13 +122,28 @@ export default function App() {
             )}
           </span>
           <span
+            ref={accountMenuRef}
             className="account-menu-wrap"
-            onMouseEnter={() => setAccountMenuOpen(true)}
-            onMouseLeave={() => setAccountMenuOpen(false)}
+            onMouseEnter={() => {
+              if (!accountMenuPinned) setAccountMenuOpen(true);
+            }}
+            onMouseLeave={() => {
+              if (!accountMenuPinned) setAccountMenuOpen(false);
+            }}
           >
             <button
               className={"btn-secondary account-btn" + (loggedIn && (ownProfile?.displayName || ownProfile?.name) ? " has-name" : "")}
-              onClick={() => setAccountMenuOpen((o) => !o)}
+              onClick={() => {
+                // A click always pins the dropdown open, or closes it if it
+                // was already pinned open — independent of whatever the
+                // hover state happened to leave it at.
+                if (accountMenuPinned) {
+                  closeAccountMenu();
+                } else {
+                  setAccountMenuPinned(true);
+                  setAccountMenuOpen(true);
+                }
+              }}
               aria-label="Account"
             >
               <AvatarIcon seed={activePubkey ?? "anon"} picture={ownProfile?.picture} loggedIn={loggedIn} />
@@ -133,7 +170,6 @@ export default function App() {
                   <button className="account-dropdown-item" onClick={handleAuthClick}>
                     {loggedIn ? "Log Out" : "Log In"}
                   </button>
-                  {authError && <div className="account-dropdown-error">{authError}</div>}
                 </div>
               </div>
             )}
@@ -146,6 +182,7 @@ export default function App() {
       </main>
 
       {settingsTab && <SettingsPanel initialTab={settingsTab} onClose={() => setSettingsTab(null)} />}
+      {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLoggedIn={handleLoggedIn} />}
     </div>
   );
 }

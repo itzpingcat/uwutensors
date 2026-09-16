@@ -26,6 +26,11 @@ export interface LocalIdentity {
 
 let cached: LocalIdentity | null = null;
 
+function identityFromPrivKey(privKey: Uint8Array): LocalIdentity {
+  const pubkeyHex = getPublicKey(privKey);
+  return { privKey, pubkeyHex, npub: nip19.npubEncode(pubkeyHex), nsec: nip19.nsecEncode(privKey) };
+}
+
 export function getOrCreateLocalIdentity(): LocalIdentity {
   if (cached) return cached;
 
@@ -45,8 +50,41 @@ export function getOrCreateLocalIdentity(): LocalIdentity {
     localStorage.setItem(STORAGE_KEY, nip19.nsecEncode(privKey));
   }
 
-  const pubkeyHex = getPublicKey(privKey);
-  cached = { privKey, pubkeyHex, npub: nip19.npubEncode(pubkeyHex), nsec: nip19.nsecEncode(privKey) };
+  cached = identityFromPrivKey(privKey);
+  return cached;
+}
+
+/**
+ * Explicitly generate a brand new local identity, overwriting whatever key
+ * (if any) was stored before. Only called when the user actively clicks
+ * "Create new account" in the login flow — never as a silent fallback, so a
+ * user never loses track of which nsec they're on without choosing to.
+ */
+export function createNewLocalIdentity(): LocalIdentity {
+  const privKey = generateSecretKey();
+  localStorage.setItem(STORAGE_KEY, nip19.nsecEncode(privKey));
+  cached = identityFromPrivKey(privKey);
+  return cached;
+}
+
+/**
+ * Adopt a user-supplied nsec as the local identity, overwriting whatever
+ * was stored before. Throws with a plain-language message on anything that
+ * isn't a valid bech32 nsec, so the login form can show it inline.
+ */
+export function importNsec(nsec: string): LocalIdentity {
+  const trimmed = nsec.trim();
+  let decoded;
+  try {
+    decoded = nip19.decode(trimmed);
+  } catch {
+    throw new Error("That doesn't look like a valid nsec.");
+  }
+  if (decoded.type !== "nsec") {
+    throw new Error(`Expected an nsec, got a ${decoded.type}.`);
+  }
+  localStorage.setItem(STORAGE_KEY, trimmed);
+  cached = identityFromPrivKey(decoded.data);
   return cached;
 }
 
@@ -102,23 +140,40 @@ export function isLoggedIn(): boolean {
   return getLoginMode() !== "out";
 }
 
+/** Thrown by logIn() when no NIP-07 extension is available, so the UI can
+ *  open the paste-nsec/create-new picker instead of silently generating or
+ *  reusing a local key the user never chose. */
+export class NoExtensionError extends Error {
+  constructor() {
+    super("No NIP-07 browser extension found.");
+    this.name = "NoExtensionError";
+  }
+}
+
 /**
- * Attempt to log in. Prefers a NIP-07 extension if one is present (asks it
- * for its pubkey — this is what actually pops the extension's own
- * permission prompt); falls back to the local generated key otherwise.
- * Throws if a NIP-07 extension is present but the user declines/it errors,
- * so the caller can show that failure rather than silently no-op'ing.
+ * Log in via a NIP-07 browser extension (nos2x, Alby, etc.) — this is what
+ * actually pops the extension's own permission prompt. Throws
+ * NoExtensionError if none is found (after a brief wait for a slow-to-
+ * inject one — see waitForNip07) so the caller can fall through to the
+ * paste-nsec / create-new-account flow, and throws whatever the extension
+ * itself throws if the user declines the prompt.
+ *
+ * This never silently falls back to a local key: logging in with "local"
+ * mode only happens via importNsec()/createNewLocalIdentity() plus
+ * setLocalLoginMode(), both of which are explicit user choices.
  */
 export async function logIn(): Promise<{ mode: LoginMode; pubkeyHex: string }> {
   const ext = await waitForNip07();
-  if (ext) {
-    const pubkeyHex = await ext.getPublicKey(); // throws on decline
-    localStorage.setItem(LOGIN_MODE_KEY, "nip07");
-    return { mode: "nip07", pubkeyHex };
-  }
-  const identity = getOrCreateLocalIdentity();
+  if (!ext) throw new NoExtensionError();
+  const pubkeyHex = await ext.getPublicKey(); // throws on decline
+  localStorage.setItem(LOGIN_MODE_KEY, "nip07");
+  return { mode: "nip07", pubkeyHex };
+}
+
+/** Marks login mode as "local" (paste-nsec or create-new), after the
+ *  identity itself has already been set via importNsec()/createNewLocalIdentity(). */
+export function setLocalLoginMode(): void {
   localStorage.setItem(LOGIN_MODE_KEY, "local");
-  return { mode: "local", pubkeyHex: identity.pubkeyHex };
 }
 
 export function logOut(): void {
