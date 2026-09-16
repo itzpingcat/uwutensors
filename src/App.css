@@ -33,7 +33,13 @@ body {
   min-height: 100vh;
 }
 
-#app { max-width: 1280px; margin: 0 auto; }
+/* No max-width here — the original never constrains the outer container.
+   #grid's auto-fill minmax() below is what makes the layout responsive:
+   more columns on a wide screen, fewer (down to one) on a narrow one. A
+   fixed max-width on #app was fighting that, capping the whole page to a
+   narrow centered column on wide monitors instead of letting the grid
+   actually expand into the available space. */
+#app { width: 100%; }
 
 /* === BANNER === */
 .banner {

@@ -24,7 +24,13 @@ interface SettingsState {
 // loading that stale empty state forever and the new defaults never take
 // effect for anyone who already had the app open. Bumping SETTINGS_VERSION
 // forces exactly one migration for existing installs.
-const SETTINGS_VERSION = 1;
+//
+// v1: relay/allowlist defaults, empty -> llama.garden's real values.
+// v2: pump API default, empty/disabled -> llama.garden's real endpoint,
+// enabled by default (same "additive, not critical" framing as the pump
+// fleet — safe to enable by default since a failure here only affects
+// the seeder/download counts on cards, not the catalog or downloads).
+const SETTINGS_VERSION = 2;
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -111,6 +117,15 @@ export const useSettingsStore = create<SettingsState>()(
                   ? s.filters.allowlist.pubkeys
                   : DEFAULT_SETTINGS.filters.allowlist.pubkeys,
               },
+            },
+            // Only fill in the pump API URL if it was never set (still
+            // empty) — an empty apiUrl means "user never touched this",
+            // since a user who set their own URL (or explicitly cleared
+            // it) should keep that choice, not have it silently
+            // overwritten by a version bump.
+            pumps: {
+              enabled: s.pumps?.apiUrl ? s.pumps.enabled : DEFAULT_SETTINGS.pumps.enabled,
+              apiUrl: s.pumps?.apiUrl || DEFAULT_SETTINGS.pumps.apiUrl,
             },
           },
         };

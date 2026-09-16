@@ -26,6 +26,8 @@ export class RelayPool {
     close: () => void;
   } | null = null;
 
+  private pollHandle: ReturnType<typeof setInterval> | null = null;
+
   constructor(relays: string[], onConnectionChange?: (connected: number, total: number) => void) {
     this.relays = relays;
     this.onConnectionChange = onConnectionChange;
@@ -37,7 +39,27 @@ export class RelayPool {
     this.pool = new SimplePool({
       onRelayConnectionSuccess: () => this.reportConnectionChange(),
       onRelayConnectionFailure: () => this.reportConnectionChange(),
+      // AbstractSimplePool defaults to idleTimeout=20000ms with
+      // enableReconnect=false — a relay with no "ongoing operation" for
+      // 20s auto-closes and never reconnects. Our subscription is meant
+      // to stay open indefinitely (a live catalog feed, not a one-shot
+      // query), and after the initial EOSE a subscription can sit idle
+      // between events, so the default silently dropped every relay to 0
+      // one by one shortly after connecting (the "climbs to N, then
+      // resets to 0" bug). idleTimeout: 0 disables the auto-close, and
+      // enableReconnect covers relays that drop for other reasons
+      // (network blip, relay-side restart).
+      idleTimeout: 0,
+      enableReconnect: true,
     } as ConstructorParameters<typeof SimplePool>[0]);
+
+    // Safety net: onRelayConnectionSuccess/Failure only fire from the
+    // subscribeMany/publish code paths, not from a relay's own internal
+    // reconnect() after a drop (see handleHardClose in abstract-relay.js).
+    // So a relay that silently reconnects in the background would leave
+    // the displayed count stale until the next explicit pool operation.
+    // Poll listConnectionStatus() directly so the UI self-corrects.
+    this.pollHandle = setInterval(() => this.reportConnectionChange(), 3000);
   }
 
   private reportConnectionChange() {
@@ -115,6 +137,7 @@ export class RelayPool {
   }
 
   close() {
+    if (this.pollHandle) clearInterval(this.pollHandle);
     this.activeSub?.close();
     this.activeSub = null;
     this.pool.close(this.relays);

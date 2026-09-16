@@ -49,7 +49,16 @@ export const DEFAULT_ALLOWLIST_PUBKEYS: string[] = [
   "77649e3424344dc6a068fc8f29265336d84b2b8f9449698609843427d468c341",
 ];
 
-export const DEFAULT_PUMPS_API_URL = "";
+/**
+ * llama.garden's own pump/seeder-count API. Same "additive, not critical"
+ * infrastructure framing as the pump fleet itself: if this endpoint is
+ * unreachable, torrent listings and downloads still work via BitTorrent
+ * and HF webseeds — this only affects the live seeder/download counts
+ * shown on each card. Still off by default (pumps.enabled) so a fresh
+ * install doesn't silently start polling a third party's server; the user
+ * turns it on in Settings once they've seen this default.
+ */
+export const DEFAULT_PUMPS_API_URL = "https://api.llama.garden/pumps";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   filters: {
@@ -81,7 +90,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     servers: DEFAULT_BLOSSOM_SERVERS,
   },
   pumps: {
-    enabled: false,
+    enabled: true,
     apiUrl: DEFAULT_PUMPS_API_URL,
   },
 };
