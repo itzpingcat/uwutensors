@@ -45,8 +45,9 @@ export function useNostrCatalog() {
     const initialRelays = useSettingsStore.getState().settings.relays.relays;
     useCatalogStore.getState().setRelayCounts(0, initialRelays.length);
 
-    const pool = new RelayPool(initialRelays, (connected, total) => {
+    const pool = new RelayPool(initialRelays, (connected, total, status) => {
       useCatalogStore.getState().setRelayCounts(connected, total);
+      useCatalogStore.getState().setRelayStatus(status);
     });
     poolRef.current = pool;
 
@@ -78,6 +79,7 @@ export function useNostrCatalog() {
   useEffect(() => {
     poolRef.current?.setRelays(relays);
     useCatalogStore.getState().setRelayCounts(poolRef.current?.getConnectedCount() ?? 0, relays.length);
+    useCatalogStore.getState().setRelayStatus(poolRef.current?.getRelayStatus() ?? new Map());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relays.join(",")]);
 }

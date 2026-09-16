@@ -13,7 +13,7 @@ import type { NostrEvent } from "../types";
 export class RelayPool {
   private pool: SimplePool;
   private relays: string[];
-  private onConnectionChange?: (connected: number, total: number) => void;
+  private onConnectionChange?: (connected: number, total: number, status: Map<string, boolean>) => void;
 
   // Remembers the active subscription's filter/callbacks so setRelays()
   // can restart it against the new relay set. Without this, changing
@@ -28,7 +28,7 @@ export class RelayPool {
 
   private pollHandle: ReturnType<typeof setInterval> | null = null;
 
-  constructor(relays: string[], onConnectionChange?: (connected: number, total: number) => void) {
+  constructor(relays: string[], onConnectionChange?: (connected: number, total: number, status: Map<string, boolean>) => void) {
     this.relays = relays;
     this.onConnectionChange = onConnectionChange;
     // SimplePool's public constructor type only advertises enablePing /
@@ -63,7 +63,7 @@ export class RelayPool {
   }
 
   private reportConnectionChange() {
-    this.onConnectionChange?.(this.getConnectedCount(), this.relays.length);
+    this.onConnectionChange?.(this.getConnectedCount(), this.relays.length, this.getRelayStatus());
   }
 
   getConnectedCount(): number {
@@ -72,6 +72,16 @@ export class RelayPool {
       if (this.pool.listConnectionStatus().get(url)) n++;
     }
     return n;
+  }
+
+  /** Per-relay connection status, for surfacing which specific relays are up/down in the UI. */
+  getRelayStatus(): Map<string, boolean> {
+    const status = this.pool.listConnectionStatus();
+    const out = new Map<string, boolean>();
+    for (const url of this.relays) {
+      out.set(url, status.get(url) ?? false);
+    }
+    return out;
   }
 
   /**

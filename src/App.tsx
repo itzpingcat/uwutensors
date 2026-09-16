@@ -13,6 +13,8 @@ export default function App() {
   const [bannerMsg, setBannerMsg] = useState<string | null>(null);
   const connectedRelays = useCatalogStore((s) => s.connectedRelays);
   const totalRelays = useCatalogStore((s) => s.totalRelays);
+  const relayStatus = useCatalogStore((s) => s.relayStatus);
+  const [relayTooltipOpen, setRelayTooltipOpen] = useState(false);
 
   return (
     <div id="app">
@@ -23,7 +25,11 @@ export default function App() {
           UwUTensors <span className="ver-badge">v{APP_VERSION}</span>
         </h1>
         <div className="top-right">
-          <span className="stat">
+          <span
+            className="stat relay-stat"
+            onMouseEnter={() => setRelayTooltipOpen(true)}
+            onMouseLeave={() => setRelayTooltipOpen(false)}
+          >
             <span
               className={
                 "conn-dot " +
@@ -31,6 +37,16 @@ export default function App() {
               }
             />
             <b>{connectedRelays}</b>/{totalRelays} relays
+            {relayTooltipOpen && relayStatus.size > 0 && (
+              <div className="relay-tooltip">
+                {[...relayStatus.entries()].map(([url, connected]) => (
+                  <div key={url} className="relay-tooltip-row">
+                    <span className={"conn-dot " + (connected ? "live" : "err")} />
+                    <span className="relay-tooltip-url">{url}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </span>
           <button className="btn-secondary" onClick={() => setSettingsOpen(true)}>
             Settings

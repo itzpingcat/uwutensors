@@ -10,6 +10,7 @@ interface CatalogState {
   latestClientAnnouncement: ClientAnnouncement | null;
   connectedRelays: number;
   totalRelays: number;
+  relayStatus: Map<string, boolean>; // per-relay url -> connected, for the relay-list hover tooltip
 
   upsertListing: (listing: TorrentListing) => void;
   addApprovedId: (id: string) => void;
@@ -18,6 +19,7 @@ interface CatalogState {
   setPumpStatus: (status: PumpStatus) => void;
   setClientAnnouncement: (ann: ClientAnnouncement) => void;
   setRelayCounts: (connected: number, total: number) => void;
+  setRelayStatus: (status: Map<string, boolean>) => void;
   reset: () => void;
 }
 
@@ -30,6 +32,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   latestClientAnnouncement: null,
   connectedRelays: 0,
   totalRelays: 0,
+  relayStatus: new Map(),
 
   upsertListing: (listing) =>
     set((s) => {
@@ -60,6 +63,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
 
   setClientAnnouncement: (ann) => set({ latestClientAnnouncement: ann }),
   setRelayCounts: (connected, total) => set({ connectedRelays: connected, totalRelays: total }),
+  setRelayStatus: (status) => set({ relayStatus: status }),
 
   reset: () =>
     set({

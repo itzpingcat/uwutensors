@@ -15,7 +15,12 @@ export function TorrentCard({ listing, onOpen }: Props) {
   const pump = useCatalogStore((s) => s.pumpStatus.get(listing.infohash));
 
   const title = listing.displayName ?? listing.name;
-  const seederCount = pump?.seeders.filter((p) => p.percentDone >= 100).length ?? 0;
+  // Original counts every pump entry as a seeder (pumpData.data.length in
+  // waifu-magnet-22.html), not just peers at 100%. A `percentDone >= 100`
+  // filter here was an invented, over-strict condition that made this
+  // always show 0 seeders in practice — pump entries are peers currently
+  // seeding/leeching via the pump fleet, not "fully downloaded" markers.
+  const seederCount = pump?.seeders.length ?? 0;
 
   async function handleDownload(e: React.MouseEvent) {
     e.stopPropagation();
