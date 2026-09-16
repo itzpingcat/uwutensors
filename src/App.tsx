@@ -30,9 +30,10 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    getSigningPubkey().then((pk) => {
+    (async () => {
+      const pk = await getSigningPubkey();
       if (!cancelled) setActivePubkey(pk);
-    });
+    })();
     return () => {
       cancelled = true;
     };
