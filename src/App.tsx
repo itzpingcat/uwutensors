@@ -72,7 +72,7 @@ export default function App() {
 
       <header id="top">
         <h1>
-          UwUTensors <span className="ver-badge">v{APP_VERSION}</span>
+          uwutensors <span className="ver-badge">v{APP_VERSION}</span>
         </h1>
         <div className="top-right">
           <span
