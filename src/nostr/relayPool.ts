@@ -15,12 +15,21 @@ export class RelayPool {
   private relays: string[];
   private onConnectionChange?: (connected: number, total: number, status: Map<string, boolean>) => void;
 
-  // Remembers the active subscription's filter/callbacks so setRelays()
+  // Remembers the active subscription's filters/callbacks so setRelays()
   // can restart it against the new relay set. Without this, changing
   // `this.relays` after subscribe() had no effect on the live connection —
   // subscribeMany() only reads the relay list at call time.
+  //
+  // filters is an array (not a single Filter) because relays commonly cap
+  // how many events an unlimited/broad REQ returns by default, and a
+  // single filter combining every event kind we care about into one
+  // request was getting silently truncated by that per-relay cap —
+  // opening one REQ per kind, each with its own `limit`, mirrors what the
+  // original waifu-magnet-22.html sent (limit: 500 for listings/labels,
+  // limit: 1 for the client-announce kind) and gets each kind its own
+  // budget instead of all kinds competing for one relay-imposed cap.
   private activeSub: {
-    filter: Filter;
+    filters: Filter[];
     onEvent: (event: NostrEvent) => void;
     onEose?: (relay: string) => void;
     close: () => void;
@@ -96,9 +105,9 @@ export class RelayPool {
     this.relays = relays;
     this.reportConnectionChange();
     if (this.activeSub) {
-      const { filter, onEvent, onEose } = this.activeSub;
+      const { filters, onEvent, onEose } = this.activeSub;
       this.activeSub.close();
-      this.activeSub = this.openSubscription(filter, onEvent, onEose);
+      this.activeSub = this.openSubscription(filters, onEvent, onEose);
     }
   }
 
@@ -107,28 +116,34 @@ export class RelayPool {
   }
 
   private openSubscription(
-    filter: Filter,
+    filters: Filter[],
     onEvent: (event: NostrEvent) => void,
     onEose?: (relay: string) => void
   ) {
-    const sub = this.pool.subscribeMany(this.relays, filter, {
-      onevent: (ev) => onEvent(ev as NostrEvent),
-      oneose: () => onEose?.(""),
-    });
-    return { filter, onEvent, onEose, close: () => sub.close() };
+    const subs = filters.map((filter) =>
+      this.pool.subscribeMany(this.relays, filter, {
+        onevent: (ev) => onEvent(ev as NostrEvent),
+        oneose: () => onEose?.(""),
+      })
+    );
+    return { filters, onEvent, onEose, close: () => subs.forEach((s) => s.close()) };
   }
 
   /**
-   * Subscribe to a filter across all configured relays. Returns an
-   * unsubscribe function. `onEvent` only ever receives events that
-   * nostr-tools has already signature-verified.
+   * Subscribe across all configured relays. Accepts one filter or several —
+   * pass several to give each event kind its own `limit` instead of having
+   * them compete for one relay-imposed cap on a combined filter (see the
+   * comment on activeSub above). Returns an unsubscribe function. `onEvent`
+   * only ever receives events that nostr-tools has already
+   * signature-verified.
    */
   subscribe(
-    filter: Filter,
+    filter: Filter | Filter[],
     onEvent: (event: NostrEvent) => void,
     onEose?: (relay: string) => void
   ): () => void {
-    this.activeSub = this.openSubscription(filter, onEvent, onEose);
+    const filters = Array.isArray(filter) ? filter : [filter];
+    this.activeSub = this.openSubscription(filters, onEvent, onEose);
     return () => {
       this.activeSub?.close();
       this.activeSub = null;

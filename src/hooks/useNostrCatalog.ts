@@ -61,16 +61,21 @@ export function useNostrCatalog() {
     poolRef.current = pool;
     sharedPool = pool;
 
+    // One filter per kind (not one filter listing every kind) so each kind
+    // gets its own `limit` — see the comment on RelayPool.activeSub. We
+    // don't gate any of these by `authors` (the original does, then
+    // separately re-fetches non-whitelisted-but-approved torrents by id —
+    // see parseApprovalLabel below); an author-less REQ is a superset of
+    // that, so it isn't needed here, but it does mean relay-side limits
+    // matter a lot more since we're asking for everything of that kind.
     unsubscribeRef.current = pool.subscribe(
-      {
-        kinds: [
-          KIND.TORRENT_LISTING,
-          KIND.CLIENT_ANNOUNCE,
-          KIND.SEEDER_REQUEST,
-          KIND.MODEL_REQUEST,
-          KIND.LABEL,
-        ],
-      },
+      [
+        { kinds: [KIND.TORRENT_LISTING], limit: 2000 },
+        { kinds: [KIND.CLIENT_ANNOUNCE], limit: 20 },
+        { kinds: [KIND.SEEDER_REQUEST], limit: 500 },
+        { kinds: [KIND.MODEL_REQUEST], limit: 500 },
+        { kinds: [KIND.LABEL], limit: 2000 },
+      ],
       (event: NostrEvent) => handleEvent(event)
     );
 
