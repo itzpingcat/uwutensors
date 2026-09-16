@@ -105,9 +105,14 @@ body {
 
 .account-menu-wrap { position: relative; display: inline-block; }
 .account-btn {
-  padding: 4px !important; width: 32px; height: 32px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%;
+  padding: 4px !important; min-width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: 16px;
+}
+.account-btn.has-name { padding: 4px 12px 4px 4px !important; }
+.account-btn-name {
+  font-size: 12px; font-family: var(--sans); color: var(--fg);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .avatar-icon { border-radius: 50%; display: block; object-fit: cover; width: 22px; height: 22px; }
 .avatar-icon-out { opacity: 0.4; filter: grayscale(1); }

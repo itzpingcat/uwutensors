@@ -104,11 +104,14 @@ export default function App() {
             onMouseLeave={() => setAccountMenuOpen(false)}
           >
             <button
-              className="btn-secondary account-btn"
+              className={"btn-secondary account-btn" + (loggedIn && (ownProfile?.displayName || ownProfile?.name) ? " has-name" : "")}
               onClick={() => setAccountMenuOpen((o) => !o)}
               aria-label="Account"
             >
               <AvatarIcon seed={activePubkey ?? "anon"} picture={ownProfile?.picture} loggedIn={loggedIn} />
+              {loggedIn && (ownProfile?.displayName || ownProfile?.name) && (
+                <span className="account-btn-name">{ownProfile.displayName || ownProfile.name}</span>
+              )}
             </button>
             {accountMenuOpen && (
               <div className="account-dropdown">

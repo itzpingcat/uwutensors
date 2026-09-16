@@ -11,10 +11,21 @@ export function SettingsPanel({
   onClose: () => void;
   initialTab?: SettingsTab;
 }) {
-  const { settings, update, updateFilters, addAllowlistPubkey, removeAllowlistPubkey, addRelay, removeRelay, resetToDefaults } =
-    useSettingsStore();
+  const {
+    settings,
+    update,
+    updateFilters,
+    addAllowlistPubkey,
+    removeAllowlistPubkey,
+    addRelay,
+    removeRelay,
+    addBlossomServer,
+    removeBlossomServer,
+    resetToDefaults,
+  } = useSettingsStore();
   const [newPubkey, setNewPubkey] = useState("");
   const [newRelay, setNewRelay] = useState("");
+  const [newBlossom, setNewBlossom] = useState("");
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [nsecRevealed, setNsecRevealed] = useState(false);
   const [copyLabel, setCopyLabel] = useState("Copy");
@@ -127,6 +138,45 @@ export function SettingsPanel({
                   if (newRelay.trim()) {
                     addRelay(newRelay.trim());
                     setNewRelay("");
+                  }
+                }}
+              >
+                Add
+              </button>
+            </div>
+
+            <h3 style={{ marginTop: 20 }}>Blossom servers</h3>
+            <p className="hint">
+              Where .torrent files are fetched from (and, when publishing, uploaded to). A
+              listing's .torrent is hash-verified against these mirrors before use, so a
+              compromised Blossom server can't silently swap in a tampered file — see the
+              .torrent files list in a listing's detail view.
+            </p>
+            <div className="pubkey-list">
+              {settings.blossom.servers.map((b) => (
+                <div key={b} className="pubkey-row">
+                  <code>{b}</code>
+                  <button className="btn-small" onClick={() => removeBlossomServer(b)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              {settings.blossom.servers.length === 0 && (
+                <div className="hint">No Blossom servers configured.</div>
+              )}
+            </div>
+            <div className="add-row">
+              <input
+                placeholder="https://blossom.example.com"
+                value={newBlossom}
+                onChange={(e) => setNewBlossom(e.target.value)}
+              />
+              <button
+                className="btn-small"
+                onClick={() => {
+                  if (newBlossom.trim()) {
+                    addBlossomServer(newBlossom.trim());
+                    setNewBlossom("");
                   }
                 }}
               >

@@ -11,6 +11,8 @@ interface SettingsState {
   removeAllowlistPubkey: (pubkeyHex: string) => void;
   addRelay: (url: string) => void;
   removeRelay: (url: string) => void;
+  addBlossomServer: (url: string) => void;
+  removeBlossomServer: (url: string) => void;
   resetToDefaults: () => void;
 }
 
@@ -89,6 +91,23 @@ export const useSettingsStore = create<SettingsState>()(
             relays: { relays: s.settings.relays.relays.filter((r) => r !== url) },
           },
         })),
+      addBlossomServer: (url) =>
+        set((s) => {
+          if (s.settings.blossom.servers.includes(url)) return s;
+          return {
+            settings: {
+              ...s.settings,
+              blossom: { servers: [...s.settings.blossom.servers, url] },
+            },
+          };
+        }),
+      removeBlossomServer: (url) =>
+        set((s) => ({
+          settings: {
+            ...s.settings,
+            blossom: { servers: s.settings.blossom.servers.filter((b) => b !== url) },
+          },
+        })),
       resetToDefaults: () => set({ settings: DEFAULT_SETTINGS }),
     }),
     {
@@ -108,6 +127,9 @@ export const useSettingsStore = create<SettingsState>()(
             ...s,
             relays: {
               relays: s.relays?.relays?.length ? s.relays.relays : DEFAULT_SETTINGS.relays.relays,
+            },
+            blossom: {
+              servers: s.blossom?.servers?.length ? s.blossom.servers : DEFAULT_SETTINGS.blossom.servers,
             },
             filters: {
               ...s.filters,
