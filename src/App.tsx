@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNostrCatalog } from "./hooks/useNostrCatalog";
 import { useOwnProfile } from "./hooks/useProfile";
+import { useMuteList } from "./hooks/useMuteList";
 import { useCatalogStore } from "./store/catalogStore";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
@@ -9,6 +10,8 @@ import { APP_VERSION } from "./lib/defaults";
 import { getActivePubkey, getSigningPubkey, isLoggedIn, logOut } from "./nostr/identity";
 import { AvatarIcon } from "./components/AvatarIcon";
 import { LoginModal } from "./components/LoginModal";
+import { TorrentPage } from "./components/TorrentPage";
+import { useRoute, navigateToCatalog } from "./hooks/useRoute";
 import "./App.css";
 
 export default function App() {
@@ -34,6 +37,10 @@ export default function App() {
   const relayStatus = useCatalogStore((s) => s.relayStatus);
   const profiles = useCatalogStore((s) => s.profiles);
   const [relayTooltipOpen, setRelayTooltipOpen] = useState(false);
+  const route = useRoute();
+  const listings = useCatalogStore((s) => s.listings);
+  const routeListing =
+    route.name === "model" ? listings.get(route.infohash) : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +54,7 @@ export default function App() {
   }, [loggedIn]);
 
   useOwnProfile(loggedIn ? activePubkey : null);
+  useMuteList(loggedIn);
   const ownProfile = activePubkey ? profiles.get(activePubkey) : undefined;
 
   // A click-pinned dropdown only closes on an outside click, not on
@@ -178,7 +186,20 @@ export default function App() {
       </header>
 
       <main id="content">
-        <CatalogGrid onPublished={setBannerMsg} onRequireLogin={() => setLoginModalOpen(true)} />
+        {route.name === "model" ? (
+          routeListing ? (
+            <TorrentPage listing={routeListing} onPublished={setBannerMsg} />
+          ) : (
+            <div className="torrent-page">
+              <button className="btn-small back-btn" onClick={navigateToCatalog}>
+                ← Back
+              </button>
+              <div className="hint">Loading this listing from relays…</div>
+            </div>
+          )
+        ) : (
+          <CatalogGrid onPublished={setBannerMsg} onRequireLogin={() => setLoginModalOpen(true)} />
+        )}
       </main>
 
       {settingsTab && <SettingsPanel initialTab={settingsTab} onClose={() => setSettingsTab(null)} />}

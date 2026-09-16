@@ -32,6 +32,7 @@ export interface ListingTrustContext {
   metadataCompleteness: number; // 0-100, computed from tag presence
   hasProfilePicture?: boolean; // resolved elsewhere from the author's kind 0 — undefined = profile not fetched yet
   hasProfileName?: boolean; // same, for name/display_name
+  hasProfileDescription?: boolean; // same, for kind 0's `about` field
 }
 
 export interface FilterResult {
@@ -84,16 +85,26 @@ function checkAntiSpam(
  * Weak on its own — trivially fakeable, proves nothing about identity or
  * intent — but a throwaway/spam account very often skips profile setup
  * entirely, so combined with the real tiers this filters out the laziest
- * ones. Treated the same as the other combining tiers: unresolved (profile
- * not fetched yet) is skipped, not failed, same reasoning as NIP-05/WoT.
+ * ones. Three independent checks (picture / name / description), each
+ * treated the same as the other combining tiers: unresolved (profile not
+ * fetched yet) is skipped, not failed, same reasoning as NIP-05/WoT.
  */
-function checkProfileBasics(
-  requireProfileBasics: boolean,
-  ctx: ListingTrustContext
-): boolean | undefined {
-  if (!requireProfileBasics) return undefined;
-  if (ctx.hasProfilePicture === undefined || ctx.hasProfileName === undefined) return undefined;
-  return ctx.hasProfilePicture && ctx.hasProfileName;
+function checkProfilePicture(required: boolean, ctx: ListingTrustContext): boolean | undefined {
+  if (!required) return undefined;
+  if (ctx.hasProfilePicture === undefined) return undefined;
+  return ctx.hasProfilePicture;
+}
+
+function checkProfileName(required: boolean, ctx: ListingTrustContext): boolean | undefined {
+  if (!required) return undefined;
+  if (ctx.hasProfileName === undefined) return undefined;
+  return ctx.hasProfileName;
+}
+
+function checkProfileDescription(required: boolean, ctx: ListingTrustContext): boolean | undefined {
+  if (!required) return undefined;
+  if (ctx.hasProfileDescription === undefined) return undefined;
+  return ctx.hasProfileDescription;
 }
 
 export function evaluateListing(
@@ -119,7 +130,9 @@ export function evaluateListing(
     ["nip05", checkNip05(settings, ctx)],
     ["webOfTrust", checkWebOfTrust(settings.webOfTrust, ctx)],
     ["antiSpam", checkAntiSpam(settings.antiSpam, ctx)],
-    ["profileBasics", checkProfileBasics(settings.requireProfileBasics, ctx)],
+    ["profilePicture", checkProfilePicture(settings.requireProfilePicture, ctx)],
+    ["profileName", checkProfileName(settings.requireProfileName, ctx)],
+    ["profileDescription", checkProfileDescription(settings.requireProfileDescription, ctx)],
   ];
 
   const passedTiers: string[] = allowlistResult === true ? ["allowlist"] : [];
@@ -146,10 +159,14 @@ export function evaluateListing(
     // No enabled tier could be evaluated at all — default to visible;
     // the empty-filter-state is not itself a rejection.
     visible = true;
-  } else if (settings.combineMode === "all") {
-    visible = failedTiers.length === 0;
   } else {
-    visible = passedTiers.length > 0;
+    // "Must pass at least N of the tiers that were actually evaluated."
+    // Clamped to [1, evaluated] so a threshold of 0 (or one higher than
+    // the number of tiers currently enabled/resolved) can't trivially
+    // pass or fail everything — a threshold set for 4 tiers should still
+    // behave sanely if the user later disables one down to 3.
+    const threshold = Math.min(Math.max(1, settings.combineMinPass), evaluated);
+    visible = passedTiers.length >= threshold;
   }
 
   return { visible, passedTiers, failedTiers, skippedTiers };

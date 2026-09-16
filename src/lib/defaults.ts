@@ -62,13 +62,9 @@ export const DEFAULT_PUMPS_API_URL = "https://api.llama.garden/pumps";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   filters: {
-    hfVerification: {
-      enabled: true,
-      requireVerifiable: false,
-    },
-    requireNip05: false,
+    requireNip05: true,
     webOfTrust: {
-      enabled: false,
+      enabled: true,
       maxHops: 1,
       minScore: 1,
     },
@@ -81,8 +77,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
       enabled: true,
       pubkeys: DEFAULT_ALLOWLIST_PUBKEYS,
     },
-    requireProfileBasics: false,
-    combineMode: "any",
+    requireProfilePicture: true,
+    requireProfileName: true,
+    requireProfileDescription: true,
+    combineMinPass: 2,
   },
   relays: {
     relays: DEFAULT_RELAYS,

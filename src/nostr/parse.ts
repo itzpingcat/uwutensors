@@ -127,8 +127,20 @@ export function parseProfileMetadata(event: NostrEvent): ProfileMetadata | null 
     displayName: str(data.display_name) ?? str(data.displayName),
     picture: str(data.picture),
     nip05: str(data.nip05),
+    about: str(data.about),
     updatedAt: event.created_at,
   };
+}
+
+/**
+ * Parse a kind 10000 (NIP-51 mute list) event's `p` tags into a set of
+ * blocked pubkeys (hex). NIP-51 also allows an encrypted `content` payload
+ * for a "private" mute list, but that requires the signing key to decrypt
+ * (NIP-04/44) — out of scope for now, so this only reads the public `p`
+ * tags, same as every other NIP-51 list this app doesn't decrypt.
+ */
+export function parseMuteList(event: NostrEvent): Set<string> {
+  return new Set(tagVals(event.tags, "p"));
 }
 
 function numOrUndef(s: string | undefined): number | undefined {

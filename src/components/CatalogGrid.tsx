@@ -5,12 +5,10 @@ import { useSeederCount, usePumpFallbackSeederInfo } from "../hooks/useSeederCou
 import { useNip05Verification } from "../hooks/useNip05Verification";
 import { useCatalogStore } from "../store/catalogStore";
 import { TorrentCard } from "./TorrentCard";
-import { TorrentModal } from "./TorrentModal";
 import { RequestModelModal } from "./RequestModelModal";
 import { AddTorrentModal } from "./AddTorrentModal";
 import { humanSize } from "../lib/format";
 import { isLoggedIn } from "../nostr/identity";
-import type { TorrentListing } from "../types";
 
 interface Props {
   onPublished: (msg: string) => void;
@@ -25,7 +23,6 @@ export function CatalogGrid({ onPublished, onRequireLogin }: Props) {
   // so verifying only what's already past that filter would never resolve
   // anything for a currently-hidden author.
   const allListings = useCatalogStore((s) => s.listings);
-  const [selected, setSelected] = useState<TorrentListing | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -78,14 +75,11 @@ export function CatalogGrid({ onPublished, onRequireLogin }: Props) {
 
       <div id="grid">
         {listings.map((listing) => (
-          <TorrentCard key={listing.infohash} listing={listing} onOpen={setSelected} />
+          <TorrentCard key={listing.infohash} listing={listing} />
         ))}
         {listings.length === 0 && <div className="empty-state">No torrents match the current filters.</div>}
       </div>
 
-      {selected && (
-        <TorrentModal listing={selected} onClose={() => setSelected(null)} onPublished={onPublished} />
-      )}
       {requestOpen && <RequestModelModal onClose={() => setRequestOpen(false)} onPublished={onPublished} />}
       {addOpen && <AddTorrentModal onClose={() => setAddOpen(false)} onPublished={onPublished} />}
     </>

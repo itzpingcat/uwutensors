@@ -3,13 +3,13 @@ import type { TorrentListing } from "../types";
 import { humanSize, shortHash } from "../lib/format";
 import { fetchAndVerifyTorrent } from "../lib/torrentDownload";
 import { useCatalogStore } from "../store/catalogStore";
+import { navigateToModel } from "../hooks/useRoute";
 
 interface Props {
   listing: TorrentListing;
-  onOpen: (listing: TorrentListing) => void;
 }
 
-export function TorrentCard({ listing, onOpen }: Props) {
+export function TorrentCard({ listing }: Props) {
   const [downloadState, setDownloadState] = useState<"idle" | "verifying" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const seederInfo = useCatalogStore((s) => s.seederInfo.get(listing.infohash));
@@ -56,8 +56,26 @@ export function TorrentCard({ listing, onOpen }: Props) {
   }
 
   return (
-    <div className="card" onClick={() => onOpen(listing)}>
-      <div className="card-title">{title}</div>
+    <div
+      className="card"
+      onClick={() => navigateToModel(listing.infohash)}
+    >
+      {/* A real anchor, not just a div click, so the model page has a
+          genuine URL: right-click "copy link", open-in-new-tab, and
+          browser history all work. preventDefault stops the anchor's own
+          navigation (which would otherwise cause a duplicate hashchange);
+          stopPropagation isn't needed since the card's own onClick does
+          the same navigation anyway. */}
+      <a
+        className="card-title"
+        href={`#/model/${encodeURIComponent(listing.infohash)}`}
+        onClick={(e) => {
+          e.preventDefault();
+          navigateToModel(listing.infohash);
+        }}
+      >
+        {title}
+      </a>
       <div className="card-badges">
         {listing.lab && <span className="badge">{listing.lab}</span>}
         {listing.quantType && listing.quantType !== "n/a" && (

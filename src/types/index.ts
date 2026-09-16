@@ -32,6 +32,7 @@ export const KIND = {
   RELAY_LIST: 10002, // NIP-65
   BLOSSOM_SERVER_LIST: 10063,
   FOLLOW_LIST: 3, // NIP-02
+  MUTE_LIST: 10000, // NIP-51 — the signed-in user's own block/mute list
 } as const;
 
 export type FileClass = "base" | "fine-tune" | "quant" | "n/a";
@@ -128,6 +129,7 @@ export interface ProfileMetadata {
   displayName?: string;
   picture?: string;
   nip05?: string;
+  about?: string; // kind 0's bio/description field
   updatedAt: number; // event created_at, so a newer kind 0 replaces an older one
 }
 
@@ -160,14 +162,8 @@ export interface FileVerification {
   status: HfVerificationStatus;
 }
 
-/** Settings-driven filter pipeline, per the four-tier (+ tier 0) model. */
+/** Settings-driven filter pipeline. */
 export interface FilterSettings {
-  /** Tier 0: live cross-reference against HuggingFace (post-download only). */
-  hfVerification: {
-    enabled: boolean;
-    /** If true, hide listings whose source can't be checked against HF at all. */
-    requireVerifiable: boolean;
-  };
   /** Tier 1: NIP-05 verified identity (username@domain). */
   requireNip05: boolean;
   /** Tier 2: Web of Trust — requires a signed-in identity with a follow list. */
@@ -188,16 +184,27 @@ export interface FilterSettings {
     pubkeys: string[];
   };
   /**
-   * Requires the publisher's kind 0 to have both a picture and a
-   * name/display_name set. Weak on its own (trivial to fake — anyone can
-   * put anything in a kind 0), but combines with the real tiers above to
-   * filter out the laziest throwaway accounts, which very often skip
-   * profile setup entirely. Combines via combineMode like the other
-   * non-allowlist tiers.
+   * Three independent profile-completeness checks, each weak on its own
+   * (trivial to fake — anyone can put anything in a kind 0) but combining
+   * with the real tiers above to filter out the laziest throwaway
+   * accounts, which very often skip profile setup entirely. Each is its
+   * own tier for the threshold below — "has a name" and "has a picture"
+   * are different, independently-toggleable signals, not one bundled
+   * checkbox.
    */
-  requireProfileBasics: boolean;
-  /** How multiple enabled tiers combine. */
-  combineMode: "any" | "all";
+  requireProfilePicture: boolean;
+  requireProfileName: boolean;
+  requireProfileDescription: boolean;
+  /**
+   * How multiple enabled (non-allowlist) tiers combine: a listing must
+   * pass at least this many of the tiers that were actually evaluated
+   * (enabled AND resolved — a skipped/unresolved tier doesn't count
+   * toward either the total or the threshold). 1 behaves like the old
+   * "ANY" mode; a threshold >= the number of enabled tiers behaves like
+   * the old "ALL" mode. Always clamped to at least 1 at evaluation time,
+   * since a threshold of 0 would trivially pass everything.
+   */
+  combineMinPass: number;
 }
 
 export interface RelaySettings {

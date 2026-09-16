@@ -22,6 +22,7 @@ interface CatalogState {
   relayStatus: Map<string, boolean>; // per-relay url -> connected, for the relay-list hover tooltip
   profiles: Map<string, ProfileMetadata>; // pubkey -> kind 0 metadata
   nip05Verified: Map<string, boolean>; // pubkey -> whether their claimed NIP-05 identifier actually resolves to them
+  mutedPubkeys: Set<string>; // the signed-in user's own NIP-51 kind 10000 mute list — always enforced, not a settings toggle
 
   upsertListing: (listing: TorrentListing) => void;
   addApprovedId: (id: string) => void;
@@ -34,6 +35,7 @@ interface CatalogState {
   setRelayStatus: (status: Map<string, boolean>) => void;
   setProfile: (profile: ProfileMetadata) => void;
   setNip05Verified: (pubkey: string, verified: boolean) => void;
+  setMutedPubkeys: (muted: Set<string>) => void;
   reset: () => void;
 }
 
@@ -50,6 +52,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   relayStatus: new Map(),
   profiles: new Map(),
   nip05Verified: new Map(),
+  mutedPubkeys: new Set(),
 
   upsertListing: (listing) =>
     set((s) => {
@@ -105,6 +108,8 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       next.set(pubkey, verified);
       return { nip05Verified: next };
     }),
+
+  setMutedPubkeys: (muted) => set({ mutedPubkeys: muted }),
 
   reset: () =>
     set({

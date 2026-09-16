@@ -17,12 +17,23 @@ export function useFilteredListings() {
   const listings = useCatalogStore((s) => s.listings);
   const nip05Verified = useCatalogStore((s) => s.nip05Verified);
   const profiles = useCatalogStore((s) => s.profiles);
+  const mutedPubkeys = useCatalogStore((s) => s.mutedPubkeys);
   const filterSettings = useSettingsStore((s) => s.settings.filters);
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
 
   const results = useMemo(() => {
     const all = Array.from(listings.values());
-    return all.filter((listing) => passesUiFilters(listing, filters) && passesTrustPipeline(listing));
+    return all.filter(
+      (listing) =>
+        // The user's own NIP-51 mute list is enforced unconditionally,
+        // ahead of everything else and with no settings toggle — see
+        // useMuteList.ts for why this isn't one more trust tier. Checked
+        // first since it's the cheapest and most absolute of all the
+        // filters here.
+        !mutedPubkeys.has(listing.event.pubkey) &&
+        passesUiFilters(listing, filters) &&
+        passesTrustPipeline(listing)
+    );
 
     function passesTrustPipeline(listing: TorrentListing): boolean {
       // useNip05Verification (run from CatalogGrid, over every listing —
@@ -57,14 +68,16 @@ export function useFilteredListings() {
         powBits: leadingZeroBits(listing.event.id),
         metadataCompleteness: metadataCompleteness(listing),
         // undefined (profile not fetched/resolved yet) is preserved as-is
-        // so checkProfileBasics can tell "not resolved" apart from
-        // "resolved and genuinely missing" the same way nip05Verified does.
+        // so the profile-completeness checks can tell "not resolved" apart
+        // from "resolved and genuinely missing" the same way nip05Verified
+        // does.
         hasProfilePicture: profileResolved ? !!profile?.picture : undefined,
         hasProfileName: profileResolved ? !!(profile?.displayName || profile?.name) : undefined,
+        hasProfileDescription: profileResolved ? !!profile?.about : undefined,
       });
       return visible;
     }
-  }, [listings, filters, filterSettings, nip05Verified, profiles]);
+  }, [listings, filters, filterSettings, nip05Verified, profiles, mutedPubkeys]);
 
   const totalSize = useMemo(() => results.reduce((sum, l) => sum + l.totalSize, 0), [results]);
 

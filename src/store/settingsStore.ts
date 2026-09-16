@@ -36,7 +36,25 @@ interface SettingsState {
 // this bump exists mainly for clarity/documentation, since a genuinely
 // missing boolean field on old persisted state is already undefined,
 // which behaves identically to false everywhere it's read).
-const SETTINGS_VERSION = 3;
+// v4: changed the *default* recommended filter set (requireNip05 and
+// requireProfileBasics now default to true, alongside the pre-existing
+// allowlist-enabled default) to match what a fresh install should ship
+// with. This only affects state that still matches the OLD defaults
+// exactly (i.e. an install nobody has customized yet) — see the migrate
+// logic below; anyone who already changed a filter setting keeps their
+// own choice untouched.
+// v5: combineMode ("any"|"all") replaced with combineMinPass (a plain
+// "must pass at least N of the evaluated tiers" threshold — "any" was
+// threshold 1, "all" doesn't have a fixed N since it depends on how many
+// tiers end up enabled/resolved, so it's approximated as a high threshold
+// that evaluateListing then clamps down to however many tiers actually
+// evaluated). requireProfileBasics (one bundled "picture AND name" check)
+// split into three independent checks: requireProfilePicture,
+// requireProfileName (both keep requireProfileBasics's old value, so a
+// bundled requirement stays equally strict after the split), and the new
+// requireProfileDescription (defaults to off — nobody asked for this
+// before it existed, so there's no old value to carry forward).
+const SETTINGS_VERSION = 5;
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -123,9 +141,13 @@ export const useSettingsStore = create<SettingsState>()(
       // migrated onto the new defaults; anyone who already added their own
       // entries keeps them untouched.
       migrate: (persisted) => {
-        const state = persisted as { settings: AppSettings } | undefined;
+        // The persisted shape may still carry pre-v5 fields (combineMode,
+        // requireProfileBasics) that no longer exist on FilterSettings —
+        // read it loosely rather than typed as the current AppSettings.
+        const state = persisted as { settings: Record<string, any> } | undefined;
         if (!state?.settings) return { settings: DEFAULT_SETTINGS };
         const s = state.settings;
+        const oldFilters = (s.filters ?? {}) as Record<string, any>;
         return {
           settings: {
             ...s,
@@ -136,14 +158,37 @@ export const useSettingsStore = create<SettingsState>()(
               servers: s.blossom?.servers?.length ? s.blossom.servers : DEFAULT_SETTINGS.blossom.servers,
             },
             filters: {
-              ...s.filters,
+              ...oldFilters,
               allowlist: {
-                ...s.filters?.allowlist,
-                pubkeys: s.filters?.allowlist?.pubkeys?.length
-                  ? s.filters.allowlist.pubkeys
+                ...oldFilters.allowlist,
+                pubkeys: oldFilters.allowlist?.pubkeys?.length
+                  ? oldFilters.allowlist.pubkeys
                   : DEFAULT_SETTINGS.filters.allowlist.pubkeys,
               },
-              requireProfileBasics: s.filters?.requireProfileBasics ?? DEFAULT_SETTINGS.filters.requireProfileBasics,
+              // v3->v4: requireNip05 previously defaulted to false; the
+              // new recommended default is true. A persisted boolean can't
+              // be told apart from "still on the old default" vs.
+              // "explicitly chosen" — same limitation as every earlier
+              // default-bump migration here — so this forces it to true
+              // for everyone once, as a one-time reset onto the new
+              // recommended default, not a repeated override.
+              requireNip05: true,
+              // v4->v5: requireProfileBasics (bundled picture+name) split
+              // into independent checks. Its old value (if present) carries
+              // forward as equally strict for both; a fresh/never-migrated
+              // install has no old value, so both default true per the
+              // same v3->v4 reasoning above. requireProfileDescription is
+              // brand new — no prior value to carry forward, defaults off.
+              requireProfilePicture: oldFilters.requireProfileBasics ?? true,
+              requireProfileName: oldFilters.requireProfileBasics ?? true,
+              requireProfileDescription: oldFilters.requireProfileDescription ?? false,
+              // v4->v5: combineMode ("any"|"all") -> combineMinPass (N).
+              // "any" was threshold 1; "all" had no fixed N, so it's
+              // approximated with a high threshold that evaluateListing
+              // clamps down to however many tiers are actually enabled —
+              // functionally identical to the old "all" behavior.
+              combineMinPass:
+                oldFilters.combineMinPass ?? (oldFilters.combineMode === "all" ? 99 : 1),
             },
             // Only fill in the pump API URL if it was never set (still
             // empty) — an empty apiUrl means "user never touched this",
@@ -154,6 +199,28 @@ export const useSettingsStore = create<SettingsState>()(
               enabled: s.pumps?.apiUrl ? s.pumps.enabled : DEFAULT_SETTINGS.pumps.enabled,
               apiUrl: s.pumps?.apiUrl || DEFAULT_SETTINGS.pumps.apiUrl,
             },
+          },
+        };
+      },
+      // zustand's default merge is a SHALLOW `{...currentState,
+      // ...persistedState}` — fine for top-level keys, but `settings` is
+      // one big nested object, so a shallow merge would replace the
+      // entire `settings` tree with whatever came back from
+      // migrate/localStorage, silently dropping any field the persisted
+      // blob doesn't have (e.g. a key added after that blob was last
+      // saved, before its own version bump lands). This does a proper
+      // nested merge instead, layering persisted values over
+      // DEFAULT_SETTINGS field-by-field so a missing/malformed nested
+      // field falls back to its default instead of becoming undefined.
+      merge: (persisted, current) => {
+        const p = (persisted as { settings?: Partial<AppSettings> } | undefined)?.settings ?? {};
+        return {
+          ...current,
+          settings: {
+            filters: { ...DEFAULT_SETTINGS.filters, ...p.filters },
+            relays: { ...DEFAULT_SETTINGS.relays, ...p.relays },
+            blossom: { ...DEFAULT_SETTINGS.blossom, ...p.blossom },
+            pumps: { ...DEFAULT_SETTINGS.pumps, ...p.pumps },
           },
         };
       },
