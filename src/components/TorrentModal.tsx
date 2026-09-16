@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { nip19 } from "nostr-tools";
 import type { TorrentListing } from "../types";
 import { humanSize, shortHash } from "../lib/format";
 import { fetchAndVerifyTorrent, magnetWithVerifiedSource } from "../lib/torrentDownload";
 import { useCatalogStore } from "../store/catalogStore";
+import { useProfile } from "../hooks/useProfile";
+import { AvatarIcon } from "./AvatarIcon";
 import { RequestSeedersModal } from "./RequestSeedersModal";
 
 interface Props {
@@ -82,7 +85,12 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
   const [magnetOut, setMagnetOut] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [copyMagnetLabel, setCopyMagnetLabel] = useState("Copy magnet link");
+  const [copyNpubLabel, setCopyNpubLabel] = useState("copy npub");
   const pump = useCatalogStore((s) => s.pumpStatus.get(listing.infohash));
+  const submitterProfile = useProfile(listing.event.pubkey);
+  const submitterNpub = nip19.npubEncode(listing.event.pubkey);
+  const submitterName =
+    submitterProfile?.displayName || submitterProfile?.name || shortHash(listing.event.pubkey, 16);
 
   const seederCount = pump?.seeders.length ?? 0;
   const webseedCount = listing.webseeds.length;
@@ -133,7 +141,7 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
         <button className="modal-close" onClick={onClose}>
           &times;
         </button>
-        <h2>{listing.displayName ?? listing.name}</h2>
+        <h2>{listing.lab ? `${listing.lab} / ${listing.displayName ?? listing.name}` : listing.displayName ?? listing.name}</h2>
 
         <div className="pump-section">
           <div className="pump-head">Seed status</div>
@@ -286,8 +294,28 @@ export function TorrentModal({ listing, onClose, onPublished }: Props) {
               </dd>
             </>
           )}
-          <dt>Publisher</dt>
-          <dd title={listing.event.pubkey}>{shortHash(listing.event.pubkey, 16)}</dd>
+          <dt>Submitted by</dt>
+          <dd title={listing.event.pubkey}>
+            <a
+              className="submitter-link"
+              href={`https://njump.me/${submitterNpub}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <AvatarIcon seed={listing.event.pubkey} picture={submitterProfile?.picture} />
+              {submitterName}
+            </a>{" "}
+            <button
+              className="copy-inline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                copyToClipboard(submitterNpub, setCopyNpubLabel);
+              }}
+            >
+              {copyNpubLabel}
+            </button>
+          </dd>
         </dl>
 
         {listing.urls.length > 0 && (

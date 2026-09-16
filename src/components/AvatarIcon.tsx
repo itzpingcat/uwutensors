@@ -10,11 +10,12 @@ import { useState } from "react";
 export function AvatarIcon({
   seed,
   picture,
-  loggedIn,
+  loggedIn = true,
 }: {
   seed: string;
   picture?: string;
-  loggedIn: boolean;
+  /** Grays out the icon — used for the account button's "logged out" state. Defaults to true (full color) for any other use, e.g. showing a listing's submitter. */
+  loggedIn?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
 

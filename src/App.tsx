@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNostrCatalog } from "./hooks/useNostrCatalog";
-import { useOwnProfile } from "./hooks/useOwnProfile";
+import { useOwnProfile } from "./hooks/useProfile";
 import { useCatalogStore } from "./store/catalogStore";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { SettingsPanel, type SettingsTab } from "./components/SettingsPanel";
