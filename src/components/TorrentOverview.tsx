@@ -90,6 +90,7 @@ export function TorrentOverview({ listing, onPublished }: Props) {
   const [seederModalOpen, setSeederModalOpen] = useState(false);
   const [magnetOut, setMagnetOut] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [downloadingTorrent, setDownloadingTorrent] = useState(false);
   const [copyMagnetLabel, setCopyMagnetLabel] = useState("Copy magnet link");
   const [copyNpubLabel, setCopyNpubLabel] = useState("copy npub");
   const pump = useCatalogStore((s) => s.pumpStatus.get(listing.infohash));
@@ -117,19 +118,46 @@ export function TorrentOverview({ listing, onPublished }: Props) {
         ? "Seeder count from llama.garden's pump fleet — not the full swarm, since this torrent lists no WebSocket tracker a browser can scrape directly."
         : undefined;
 
-  async function generateMagnet() {
-    if (listing.urls.length === 0) {
-      setMagnetOut(listing.magnet);
-      return;
-    }
-    setGenerating(true);
+  async function resolveMagnet(): Promise<string> {
+    if (listing.urls.length === 0) return listing.magnet;
     try {
       const result = await fetchAndVerifyTorrent(listing.urls, listing.torrentSha256, listing.torrentSize);
-      setMagnetOut(magnetWithVerifiedSource(listing.magnet, result.sourceUrl));
+      return magnetWithVerifiedSource(listing.magnet, result.sourceUrl);
     } catch {
-      setMagnetOut(listing.magnet);
+      return listing.magnet;
+    }
+  }
+
+  async function copyMagnetLink() {
+    setGenerating(true);
+    try {
+      const magnet = await resolveMagnet();
+      setMagnetOut(magnet);
+      copyToClipboard(magnet, setCopyMagnetLabel);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function downloadTorrentFile() {
+    if (listing.urls.length === 0) return;
+    setDownloadingTorrent(true);
+    try {
+      const result = await fetchAndVerifyTorrent(listing.urls, listing.torrentSha256, listing.torrentSize);
+      const blob = new Blob([result.bytes], { type: "application/x-bittorrent" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${listing.name || listing.infohash}.torrent`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // fetchAndVerifyTorrent already tried every mirror; nothing more to do
+      // here besides leaving the button re-enabled for a retry.
+    } finally {
+      setDownloadingTorrent(false);
     }
   }
 
@@ -143,31 +171,31 @@ export function TorrentOverview({ listing, onPublished }: Props) {
 
       <div className="magnet-section">
         <div className="magnet-btn-row">
+          <button
+            className="magnet-btn"
+            onClick={downloadTorrentFile}
+            disabled={listing.urls.length === 0 || downloadingTorrent}
+            title={listing.urls.length === 0 ? "No .torrent mirror available to download" : undefined}
+          >
+            {downloadingTorrent ? "Downloading…" : "Download .torrent"}
+          </button>
           {noSeeders ? (
-            <button className="magnet-btn" disabled title="No seeders — magnet link cannot resolve without peers">
-              Generate magnet
-            </button>
+            <span className="magnet-btn-tooltip-wrap">
+              <button className="magnet-btn" disabled>
+                Copy magnet link
+              </button>
+              <span className="magnet-btn-tooltip">
+                No seeders — magnet link cannot resolve without peers. Use the .torrent file with a
+                webseed-capable client (e.g. Transmission).
+              </span>
+            </span>
           ) : (
-            <button className="magnet-btn" onClick={generateMagnet} disabled={generating}>
-              {generating ? "Verifying…" : magnetOut ? "Regenerate magnet" : "Generate magnet"}
+            <button className="magnet-btn" onClick={copyMagnetLink} disabled={generating}>
+              {generating ? "Verifying…" : copyMagnetLabel}
             </button>
           )}
-          <button
-            className="magnet-btn magnet-copy-btn"
-            disabled={!magnetOut}
-            onClick={() => magnetOut && copyToClipboard(magnetOut, setCopyMagnetLabel)}
-          >
-            {copyMagnetLabel}
-          </button>
         </div>
-        {noSeeders ? (
-          <div className="magnet-note">
-            No bittorrent seeders, magnet link won't work. Use the .torrent file with a webseed-capable
-            client (e.g. Transmission).
-          </div>
-        ) : (
-          magnetOut && <div className="magnet-out">{magnetOut}</div>
-        )}
+        {magnetOut && !noSeeders && <div className="magnet-out">{magnetOut}</div>}
       </div>
 
       <dl className="modal-fields">

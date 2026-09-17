@@ -102,7 +102,7 @@ export default function App() {
       <Banner message={bannerMsg} onDismiss={() => setBannerMsg(null)} />
 
       <header id="top">
-        <h1>
+        <h1 className="app-title" onClick={navigateToCatalog} role="button" tabIndex={0}>
           uwutensors <span className="ver-badge">v{APP_VERSION}</span>
         </h1>
         <div className="top-right">
