@@ -19,15 +19,24 @@ export function useModelCard(listing: TorrentListing): ModelCardState {
   const [state, setState] = useState<ModelCardState>({ status: "idle" });
 
   useEffect(() => {
-    if (!listing.repoId) {
+    // uwutensors-v1's own `card` tag (a Blossom-hosted README) is the
+    // Nostr-native source of truth once a listing has one — it doesn't
+    // depend on HuggingFace existing at all. Only fall back to fetching
+    // HF's README directly for legacy listings that predate this field.
+    const cardUrl = listing.card;
+    const fallbackRepoId = !cardUrl ? listing.repoId : undefined;
+    if (!cardUrl && !fallbackRepoId) {
       setState({ status: "not-found" });
       return;
     }
     let cancelled = false;
     setState({ status: "loading" });
 
-    const revision = listing.commitSha || listing.version || "main";
-    const url = `https://huggingface.co/${listing.repoId}/raw/${encodeURIComponent(revision)}/README.md`;
+    const url = cardUrl
+      ? cardUrl
+      : `https://huggingface.co/${fallbackRepoId}/raw/${encodeURIComponent(
+          listing.commitSha || listing.version || "main"
+        )}/README.md`;
 
     (async () => {
       try {
@@ -38,7 +47,7 @@ export function useModelCard(listing: TorrentListing): ModelCardState {
           return;
         }
         if (!resp.ok) {
-          setState({ status: "error", error: `HuggingFace returned ${resp.status}` });
+          setState({ status: "error", error: `${cardUrl ? "Blossom" : "HuggingFace"} returned ${resp.status}` });
           return;
         }
         const text = await resp.text();
@@ -53,7 +62,7 @@ export function useModelCard(listing: TorrentListing): ModelCardState {
     return () => {
       cancelled = true;
     };
-  }, [listing.repoId, listing.commitSha, listing.version]);
+  }, [listing.card, listing.repoId, listing.commitSha, listing.version]);
 
   return state;
 }

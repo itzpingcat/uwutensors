@@ -1,4 +1,3 @@
-import { sha256 } from "@noble/hashes/sha2.js";
 import type { NostrEvent } from "../types";
 import { APP_VERSION } from "../lib/defaults";
 import { getSigningPubkey, signWithActiveIdentity } from "./identity";
@@ -50,56 +49,61 @@ export function buildSeederRequestTags(
   return tags;
 }
 
+/**
+ * Fields for publishing a fresh uwutensors-v1 kind 30099 listing. Unlike
+ * the pre-v1 form this replaces, the infohash, magnet, torrent sha256
+ * (`x`), and piece layout are all real values derived from the actual
+ * .torrent file — see useAddTorrentForm / bencode.ts — not hand-typed
+ * metadata, so what gets published always satisfies parseV1Listing's
+ * required fields (and, incidentally, always counts as "sufficient" if
+ * some future client had to fall back to treating it as legacy).
+ */
 export interface AddTorrentFields {
-  url: string;
+  infohash: string;
+  magnet: string;
   name: string;
-  hf?: string;
-  sizeGb?: string;
-  fileClass: string;
-  modelKind: string;
+  totalSize: number;
+  torrentSha256: string;
+  type: "model" | "dataset";
+  pieces: { count: number; length: number };
   lab?: string;
+  card?: string;
+  tags?: string[];
+  modelType?: "base" | "finetune" | "merge";
   quantType?: string;
-  clientTool?: string;
-  hfMatch: "yes" | "no" | "unsure";
+  urls?: string[];
+  webseeds?: string[];
+  trackers?: string[];
+  source?: string;
+  sourceCommit?: string;
+  sourceCommitName?: string;
 }
 
-export function buildAddTorrentTags(
-  pubkeyHex: string,
-  fields: AddTorrentFields
-): string[][] {
-  const enc = new TextEncoder();
-  const idSeed = toHex(sha256(enc.encode(`${fields.url}:${fields.name}`)));
-  const d = `user:${pubkeyHex}:${idSeed}`;
-
+export function buildAddTorrentTags(fields: AddTorrentFields): string[][] {
   const tags: string[][] = [
-    ["d", d],
-    ["url", fields.url],
+    ["schema", "uwutensors-v1"],
+    ["d", fields.infohash],
+    ["magnet", fields.magnet],
     ["name", fields.name],
+    ["size", String(fields.totalSize)],
+    ["x", fields.torrentSha256],
+    ["type", fields.type],
+    ["pieces", `${fields.pieces.count}*${fields.pieces.length}`],
   ];
-  if (fields.sizeGb && !Number.isNaN(Number(fields.sizeGb))) {
-    tags.push(["size", String(Math.round(Number(fields.sizeGb) * 1073741824))]);
-  }
-  if (fields.hf) {
-    try {
-      tags.push(["source", new URL(fields.hf).hostname + new URL(fields.hf).pathname]);
-    } catch {
-      tags.push(["source", fields.hf]);
-    }
-    tags.push(["hf", fields.hf]);
-  }
-  tags.push(["file_class", fields.fileClass]);
-  tags.push(["model_kind", fields.modelKind]);
   if (fields.lab) tags.push(["lab", fields.lab]);
+  if (fields.card) tags.push(["card", fields.card]);
+  for (const t of fields.tags ?? []) tags.push(["tags", t]);
+  if (fields.modelType) tags.push(["model_type", fields.modelType]);
   if (fields.quantType) tags.push(["quant_type", fields.quantType]);
-  if (fields.clientTool) tags.push(["torrent_client_tool", fields.clientTool]);
-  tags.push(["hf_match", fields.hfMatch]);
+  for (const u of fields.urls ?? []) tags.push(["url", u]);
+  for (const w of fields.webseeds ?? []) tags.push(["webseed", w]);
+  for (const t of fields.trackers ?? []) tags.push(["tracker", t]);
+  if (fields.source) tags.push(["source", fields.source]);
+  if (fields.sourceCommit) tags.push(["source_commit", fields.sourceCommit]);
+  if (fields.sourceCommitName) tags.push(["source_commit_name", fields.sourceCommitName]);
   tags.push(["client", CLIENT_TAG]);
-  tags.push(["nonce", "0"]);
+  tags.push(["nonce", "0"]); // must stay last — the PoW worker overwrites it
   return tags;
-}
-
-function toHex(bytes: Uint8Array): string {
-  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ---------------------------------------------------------------------------

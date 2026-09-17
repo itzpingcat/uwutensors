@@ -255,10 +255,10 @@ export function TorrentOverview({ listing, onPublished }: Props) {
             <dd>{listing.fileClass}</dd>
           </>
         )}
-        {listing.modelKind && listing.modelKind !== "n/a" && (
+        {listing.modelType && listing.modelType !== "n/a" && (
           <>
             <dt>Model kind</dt>
-            <dd>{listing.modelKind}</dd>
+            <dd>{listing.modelType}</dd>
           </>
         )}
         {listing.quantType && listing.quantType !== "n/a" && (
@@ -303,11 +303,11 @@ export function TorrentOverview({ listing, onPublished }: Props) {
             <dd>{listing.createdAt}</dd>
           </>
         )}
-        {(listing.pieces || listing.pieceLength) && (
+        {listing.pieces && (
           <>
             <dt>Pieces</dt>
             <dd>
-              {listing.pieces} pieces · {humanSize(listing.pieceLength ?? 0)} each
+              {listing.pieces.count} pieces · {humanSize(listing.pieces.length)} each
             </dd>
           </>
         )}

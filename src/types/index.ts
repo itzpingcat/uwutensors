@@ -36,40 +36,80 @@ export const KIND = {
 } as const;
 
 export type FileClass = "base" | "fine-tune" | "quant" | "n/a";
-export type ModelKind = "base" | "fine-tune" | "n/a";
+export type ModelKind = "base" | "fine-tune" | "n/a"; // legacy schema's model_kind — do not extend, see ModelType
+/** uwutensors-v1's model_type tag. "merge" is its own type, distinct from
+ * "finetune" — a LoRA/adapter is functionally a finetune (same
+ * relationship to a single base model, just low-rank), but a merge
+ * combines multiple lineages and doesn't reduce to base-or-finetune. */
+export type ModelType = "base" | "finetune" | "merge" | "n/a";
 export type QuantType =
-  | "gguf" | "mlx" | "awq" | "gptq" | "fp8" | "nvfp4" | "mxfp4" | "bnb" | "onnx" | "n/a";
+  | "gguf" | "mlx" | "awq" | "gptq" | "fp8" | "nvfp4" | "mxfp4" | "bnb" | "onnx"
+  | "bf16" | "fp16" | "f16" | "n/a";
 
-/** Parsed, typed view of a kind 30099 event's tags. */
+/** uwutensors-v1 listing content type. Anything else is unrecognized —
+ * treated as unknown/hidden rather than assumed to be a model. */
+export type ListingType = "model" | "dataset";
+
+/** uwutensors-v1's compact piece-layout tag: "<count>*<length_bytes>". */
+export interface PieceLayout {
+  count: number;
+  length: number;
+}
+
+/**
+ * Parsed, typed view of a kind 30099 event's tags — always in
+ * uwutensors-v1 shape, regardless of whether the source event actually
+ * carried a `schema: uwutensors-v1` tag or was converted up from the
+ * legacy (pre-v1, "llama.garden") schema. See parseTorrentListing and
+ * convertLegacyListing in nostr/parse.ts for the two paths that produce
+ * this. `schemaVersion` records which path was taken, purely for
+ * diagnostics/UI (e.g. showing a "legacy listing" badge) — nothing
+ * downstream should need to branch on it.
+ */
 export interface TorrentListing {
   event: NostrEvent;
+  schemaVersion: "v1" | "legacy";
   infohash: string;
   magnet: string;
   name: string;
   totalSize: number;
-  pieces?: number;
-  pieceLength?: number;
-  torrentSha256?: string;
+  torrentSha256: string; // required in v1; legacy listings without it are rejected as insufficient (see parse.ts)
+  type: ListingType;
+  /**
+   * Optional even for fresh v1 listings' *runtime* shape, despite being a
+   * required tag in the wire spec — a legacy listing converted up to v1
+   * may genuinely lack pieces/piece_length, and rejecting it outright
+   * would defeat backcompat. Publish-time code (submit.ts) still treats
+   * this as required for anything actually written as uwutensors-v1.
+   */
+  pieces?: PieceLayout;
   torrentSize?: number;
   torrentCreatedAt?: string;
   urls: string[]; // Blossom download URLs for the .torrent file
   webseeds: string[];
   trackers: string[];
   source?: string; // e.g. "huggingface.co/org/repo"
+  card?: string; // Blossom URL to a README/model-card blob
 
   // Enriched (optional) metadata
-  displayName?: string;
-  fileClass?: FileClass;
-  modelKind?: ModelKind;
+  fileClass?: FileClass; // legacy-schema-only; superseded by `type` + `modelType` in v1
+  modelType?: ModelType;
   quantType?: QuantType;
+  lab?: string;
+  tags: string[];
+  subfolder?: string;
+  source_commit?: string;
+  sourceCommitName?: string;
+
+  // Legacy-schema-only enrichment, kept for listings that haven't been
+  // republished under v1 yet. Not part of the uwutensors-v1 wire spec.
+  displayName?: string;
   quantDev?: string;
   quantDetail?: string;
   quantBpw?: number;
-  lab?: string;
   modelName?: string;
   repoId?: string;
   baseModel?: string;
-  subfolder?: string;
   torrentName?: string;
   createdAt?: string; // HF createdAt
   version?: string; // HF revision
