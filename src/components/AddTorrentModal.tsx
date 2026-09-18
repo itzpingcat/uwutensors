@@ -6,6 +6,8 @@ import { lookupSourceMetadata, parseSourceUrl } from "../lib/sourceLookup";
 import { isLoggedIn } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { PowProgressBar } from "./PowProgressBar";
+import { uploadToBlossom } from "../lib/blossom";
+import { useSettingsStore } from "../store/settingsStore";
 
 interface Props {
   onClose: () => void;
@@ -25,7 +27,8 @@ const LISTING_TYPES = ["model", "dataset"] as const;
  * from the torrent's own info.name where possible) and publish.
  */
 export function AddTorrentModal({ onClose, onPublished }: Props) {
-  const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [urls, setUrls] = useState<string[]>([]);
   const [fetchStatus, setFetchStatus] = useState<"idle" | "fetching" | "ready" | "error">("idle");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [meta, setMeta] = useState<DerivedTorrentMeta | null>(null);
@@ -42,6 +45,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
   const [sourceLookupError, setSourceLookupError] = useState<string | null>(null);
   const [sourceCommit, setSourceCommit] = useState<string | undefined>(undefined);
   const { submitting, pct, label, error, submit } = useMineAndPublish();
+  const blossomServers = useSettingsStore((s) => s.settings.blossom.servers);
 
   // Autofill from a pasted HF/ModelScope source URL — only ever fills
   // fields the user hasn't already typed something into. Re-running the
@@ -69,17 +73,17 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
   }
 
   async function handleFetchTorrent() {
-    if (!url.trim()) return;
+    if (!file) return;
     setFetchStatus("fetching");
     setFetchError(null);
     setMeta(null);
     try {
-      const resp = await fetch(url.trim());
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching .torrent`);
-      const bytes = await resp.arrayBuffer();
+      const bytes = await file.arrayBuffer();
       const derived = await deriveTorrentMeta(bytes);
       setMeta(derived);
       if (!name.trim()) setName(derived.name);
+      const uploaded = await uploadToBlossom(file, blossomServers);
+      setUrls(uploaded);
       setFetchStatus("ready");
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Failed to read .torrent file.");
@@ -117,7 +121,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
         .filter(Boolean),
       modelType: modelType === "n/a" ? undefined : modelType,
       quantType: listingType === "model" ? quantType.trim() || undefined : undefined,
-      urls: [url.trim()],
+      urls,
       trackers: meta.trackers,
       webseeds: meta.webseeds,
       source: hf.trim() || undefined,
@@ -145,28 +149,47 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
         </button>
         <h2>Publish a torrent listing</h2>
         <p className="req-intro">
-          Paste a link to your .torrent file — the infohash, magnet link, and piece layout are all read
-          directly from the file itself, not typed in by hand, so what you publish always matches what
-          the torrent actually contains.
+          Choose a .torrent file to upload it to your configured Blossom servers and publish it.
         </p>
 
         <div className="field">
           <label>
-            .torrent file URL <span className="req">*</span>
+            .torrent file <span className="req">*</span>
           </label>
           <div className="seg-row" style={{ gap: 8 }}>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
-            <button className="btn-small" type="button" onClick={handleFetchTorrent} disabled={fetchStatus === "fetching" || !url.trim()}>
-              {fetchStatus === "fetching" ? "Reading…" : "Read .torrent"}
+            <input className="torrent-file-input" type="file" accept=".torrent,application/x-bittorrent" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setFetchStatus("idle"); setMeta(null); setUrls([]); }} />
+            <button className="btn-small" type="button" onClick={handleFetchTorrent} disabled={fetchStatus === "fetching" || !file}>
+              {fetchStatus === "fetching" ? "Uploading…" : "Read & upload"}
             </button>
           </div>
-          <div className="hint">Direct link to the .torrent file (e.g. hosted on Blossom).</div>
+          <div className="hint">Configured servers: {blossomServers.length}. Uploads continue if one server is unavailable.</div>
           {fetchStatus === "error" && <div className="card-error">{fetchError}</div>}
           {fetchStatus === "ready" && meta && (
             <div className="hint">
-              ✓ Infohash <code>{meta.infohash}</code> · {meta.pieces.count} pieces · sha256 verified
+              ✓ Infohash <code>{meta.infohash}</code> · {meta.pieces.count} pieces · uploaded to {urls.length} server{urls.length === 1 ? "" : "s"}
             </div>
           )}
+        </div>
+
+        <div className="field">
+          <label>
+            Source link <span className="opt">(HuggingFace, ModelScope, etc — strongly suggested)</span>
+          </label>
+          <input
+            value={hf}
+            onChange={(e) => {
+              setHf(e.target.value);
+              setSourceLookupStatus("idle");
+            }}
+            onBlur={handleAutofillFromSource}
+            placeholder="https://huggingface.co/org/repo"
+          />
+          <div className="hint">
+            Add the original model or dataset link. We can fill in some details for you.
+          </div>
+          {sourceLookupStatus === "looking-up" && <div className="hint">Looking up source metadata…</div>}
+          {sourceLookupStatus === "done" && <div className="hint">✓ Autofilled from source metadata.</div>}
+          {sourceLookupStatus === "error" && <div className="card-error">{sourceLookupError}</div>}
         </div>
 
         {meta && (
@@ -189,28 +212,6 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
                   ))}
                 </div>
               </div>
-            </div>
-
-            <div className="field">
-              <label>
-                Source link <span className="opt">(HuggingFace, ModelScope, etc — strongly suggested)</span>
-              </label>
-              <input
-                value={hf}
-                onChange={(e) => {
-                  setHf(e.target.value);
-                  setSourceLookupStatus("idle");
-                }}
-                onBlur={handleAutofillFromSource}
-                placeholder="https://huggingface.co/org/repo"
-              />
-              <div className="hint">
-                Strongly Recommended: If this is a copy of an existing model on a HuggingFace or
-                ModelScope Repo, paste it here. Other fields will autofill.
-              </div>
-              {sourceLookupStatus === "looking-up" && <div className="hint">Looking up source metadata…</div>}
-              {sourceLookupStatus === "done" && <div className="hint">✓ Autofilled from source metadata.</div>}
-              {sourceLookupStatus === "error" && <div className="card-error">{sourceLookupError}</div>}
             </div>
 
             <div className="field">

@@ -547,6 +547,16 @@ section h3 {
   cursor: pointer; font-family: var(--sans); transition: all 0.12s;
 }
 .back-btn:hover { border-color: var(--border-hi); color: var(--fg); }
+.page-actions { display: flex; align-items: center; gap: 8px; position: relative; }
+.page-actions .back-btn { margin-right: 0; }
+.publisher-menu { position: absolute; top: 34px; left: 0; z-index: 5; min-width: 180px; padding: 5px; background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--radius-sm); box-shadow: 0 8px 24px #0008; }
+.publisher-menu button { display: block; width: 100%; padding: 8px 10px; border: 0; background: transparent; color: var(--fg); text-align: left; cursor: pointer; font: inherit; }
+.publisher-menu button:hover { background: var(--surface2); color: var(--accent); }
+.publisher-menu button:disabled { opacity: 0.55; cursor: wait; }
+.publisher-menu button:disabled:hover { background: transparent; color: var(--fg); }
+.torrent-file-input { color: var(--muted2); font: inherit; max-width: 100%; }
+.torrent-file-input::file-selector-button { margin-right: 8px; padding: 7px 12px; border: 1px solid var(--accent-dim); border-radius: var(--radius-sm); background: var(--surface2); color: var(--fg); font: inherit; cursor: pointer; }
+.torrent-file-input::file-selector-button:hover { border-color: var(--accent); color: var(--accent); }
 
 .page-tabs {
   display: flex; gap: 4px; border-bottom: 1px solid var(--border);

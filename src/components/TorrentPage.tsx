@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TorrentListing } from "../types";
 import { humanSize, displayFilePath } from "../lib/format";
 import { useTorrentFiles } from "../hooks/useTorrentFiles";
 import { navigateToCatalog } from "../hooks/useRoute";
 import { TorrentOverview } from "./TorrentOverview";
 import { ModelCard } from "./ModelCard";
+import { isLoggedIn } from "../nostr/identity";
+import { getPublisherListState, updatePublisherList } from "../lib/publisherActions";
 
 type PageTab = "overview" | "files" | "community";
 
@@ -48,13 +50,54 @@ function FilesTab({ listing }: { listing: TorrentListing }) {
 
 export function TorrentPage({ listing, onPublished }: Props) {
   const [tab, setTab] = useState<PageTab>("overview");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [publisherState, setPublisherState] = useState({ followed: false, blocked: false });
+  const [publisherStateLoaded, setPublisherStateLoaded] = useState(false);
+  const [publisherAction, setPublisherAction] = useState<"follow" | "block" | null>(null);
   const title = listing.lab ? `${listing.lab} / ${listing.displayName ?? listing.name}` : listing.displayName ?? listing.name;
+
+  useEffect(() => {
+    if (!menuOpen || !isLoggedIn()) return;
+    setPublisherStateLoaded(false);
+    getPublisherListState(listing.event.pubkey)
+      .then((state) => setPublisherState(state))
+      .catch(() => undefined)
+      .finally(() => setPublisherStateLoaded(true));
+  }, [menuOpen, listing.event.pubkey]);
+
+  async function handlePublisherAction(action: "follow" | "block") {
+    if (!isLoggedIn() || !publisherStateLoaded || publisherAction) return;
+    setPublisherAction(action);
+    setActionError(null);
+    try {
+      // updatePublisherList reads the latest list again immediately before
+      // writing, so the server-side decision cannot use stale menu state.
+      await updatePublisherList(listing.event.pubkey, action);
+      const latest = await getPublisherListState(listing.event.pubkey);
+      setPublisherState(latest);
+      setMenuOpen(false);
+      onPublished(action === "follow"
+        ? (latest.followed ? "Publisher followed." : "Publisher unfollowed.")
+        : (latest.blocked ? "Publisher blocked." : "Publisher unblocked."));
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : `Couldn't update ${action} status.`);
+    } finally {
+      setPublisherAction(null);
+    }
+  }
 
   return (
     <div className="torrent-page">
-      <button className="btn-small back-btn" onClick={navigateToCatalog}>
-        ← Back
-      </button>
+      <div className="page-actions">
+        <button className="btn-small back-btn" onClick={navigateToCatalog}>← Exit</button>
+        <button className="btn-small" aria-label="Publisher actions" onClick={() => setMenuOpen((open) => !open)}>…</button>
+        {menuOpen && <div className="publisher-menu">
+          <button disabled={!publisherStateLoaded || !!publisherAction} onClick={() => handlePublisherAction("follow")}>{!publisherStateLoaded ? "Loading…" : publisherState.followed ? "Unfollow user" : "Follow publisher"}</button>
+          <button disabled={!publisherStateLoaded || !!publisherAction} onClick={() => handlePublisherAction("block")}>{!publisherStateLoaded ? "Loading…" : publisherState.blocked ? "Unblock user" : "Block publisher"}</button>
+        </div>}
+      </div>
+      {actionError && <div className="card-error">{actionError}</div>}
       <h2>{title}</h2>
 
       <div className="page-tabs">
