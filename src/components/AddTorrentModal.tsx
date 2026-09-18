@@ -82,8 +82,6 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
       const derived = await deriveTorrentMeta(bytes);
       setMeta(derived);
       if (!name.trim()) setName(derived.name);
-      const uploaded = await uploadToBlossom(file, blossomServers);
-      setUrls(uploaded);
       setFetchStatus("ready");
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Failed to read .torrent file.");
@@ -105,6 +103,19 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
       if (!proceed) return;
     }
 
+    setFetchStatus("fetching");
+    setFetchError(null);
+    let uploadedUrls: string[];
+    try {
+      uploadedUrls = await uploadToBlossom(file, blossomServers);
+      setUrls(uploadedUrls);
+    } catch (err) {
+      setFetchStatus("error");
+      setFetchError(err instanceof Error ? err.message : "Failed to upload the .torrent file.");
+      return;
+    }
+    setFetchStatus("ready");
+
     const fields: AddTorrentFields = {
       infohash: meta.infohash,
       magnet: meta.magnet,
@@ -121,7 +132,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
         .filter(Boolean),
       modelType: modelType === "n/a" ? undefined : modelType,
       quantType: listingType === "model" ? quantType.trim() || undefined : undefined,
-      urls,
+      urls: uploadedUrls,
       trackers: meta.trackers,
       webseeds: meta.webseeds,
       source: hf.trim() || undefined,
@@ -149,7 +160,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
         </button>
         <h2>Publish a torrent listing</h2>
         <p className="req-intro">
-          Choose a .torrent file to upload it to your configured Blossom servers and publish it.
+          Choose a .torrent file to read its details, then fill in the listing information and publish it.
         </p>
 
         <div className="field">
@@ -159,14 +170,14 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
           <div className="seg-row" style={{ gap: 8 }}>
             <input className="torrent-file-input" type="file" accept=".torrent,application/x-bittorrent" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setFetchStatus("idle"); setMeta(null); setUrls([]); }} />
             <button className="btn-small" type="button" onClick={handleFetchTorrent} disabled={fetchStatus === "fetching" || !file}>
-              {fetchStatus === "fetching" ? "Uploading…" : "Read & upload"}
+              {fetchStatus === "fetching" ? "Reading…" : "Read .torrent"}
             </button>
           </div>
-          <div className="hint">Configured servers: {blossomServers.length}. Uploads continue if one server is unavailable.</div>
+          <div className="hint">The file will be uploaded to {blossomServers.length} configured Blossom server{blossomServers.length === 1 ? "" : "s"} when you publish.</div>
           {fetchStatus === "error" && <div className="card-error">{fetchError}</div>}
           {fetchStatus === "ready" && meta && (
             <div className="hint">
-              ✓ Infohash <code>{meta.infohash}</code> · {meta.pieces.count} pieces · uploaded to {urls.length} server{urls.length === 1 ? "" : "s"}
+              ✓ Torrent details read successfully · {meta.pieces.count} pieces
             </div>
           )}
         </div>
