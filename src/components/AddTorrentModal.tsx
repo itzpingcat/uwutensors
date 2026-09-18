@@ -28,7 +28,6 @@ const LISTING_TYPES = ["model", "dataset"] as const;
  */
 export function AddTorrentModal({ onClose, onPublished }: Props) {
   const [file, setFile] = useState<File | null>(null);
-  const [urls, setUrls] = useState<string[]>([]);
   const [fetchStatus, setFetchStatus] = useState<"idle" | "fetching" | "ready" | "error">("idle");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [meta, setMeta] = useState<DerivedTorrentMeta | null>(null);
@@ -90,7 +89,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
   }
 
   async function handleSubmit() {
-    if (!meta || !name.trim()) return;
+    if (!meta || !name.trim() || !file) return;
     // Defense in depth — CatalogGrid's toolbar button already refuses to
     // open this modal when logged out, but guard the actual publish too in
     // case this is ever reached another way.
@@ -108,7 +107,6 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
     let uploadedUrls: string[];
     try {
       uploadedUrls = await uploadToBlossom(file, blossomServers);
-      setUrls(uploadedUrls);
     } catch (err) {
       setFetchStatus("error");
       setFetchError(err instanceof Error ? err.message : "Failed to upload the .torrent file.");
