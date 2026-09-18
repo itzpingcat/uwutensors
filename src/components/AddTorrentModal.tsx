@@ -166,7 +166,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
             .torrent file <span className="req">*</span>
           </label>
           <div className="seg-row" style={{ gap: 8 }}>
-            <input className="torrent-file-input" type="file" accept=".torrent,application/x-bittorrent" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setFetchStatus("idle"); setMeta(null); setUrls([]); }} />
+            <input className="torrent-file-input" type="file" accept=".torrent,application/x-bittorrent" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setFetchStatus("idle"); setMeta(null); }} />
             <button className="btn-small" type="button" onClick={handleFetchTorrent} disabled={fetchStatus === "fetching" || !file}>
               {fetchStatus === "fetching" ? "Reading…" : "Read .torrent"}
             </button>
