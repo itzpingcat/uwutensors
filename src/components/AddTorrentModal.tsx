@@ -171,27 +171,6 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
           )}
         </div>
 
-        <div className="field">
-          <label>
-            Source link <span className="opt">(HuggingFace, ModelScope, etc — strongly suggested)</span>
-          </label>
-          <input
-            value={hf}
-            onChange={(e) => {
-              setHf(e.target.value);
-              setSourceLookupStatus("idle");
-            }}
-            onBlur={handleAutofillFromSource}
-            placeholder="https://huggingface.co/org/repo"
-          />
-          <div className="hint">
-            Add the original model or dataset link. We can fill in some details for you.
-          </div>
-          {sourceLookupStatus === "looking-up" && <div className="hint">Looking up source metadata…</div>}
-          {sourceLookupStatus === "done" && <div className="hint">✓ Autofilled from source metadata.</div>}
-          {sourceLookupStatus === "error" && <div className="card-error">{sourceLookupError}</div>}
-        </div>
-
         {meta && (
           <>
             <div className="field">
@@ -212,6 +191,25 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
                   ))}
                 </div>
               </div>
+            </div>
+
+            <div className="field">
+              <label>
+                Source link <span className="opt">(HuggingFace, ModelScope, etc — strongly suggested)</span>
+              </label>
+              <input
+                value={hf}
+                onChange={(e) => {
+                  setHf(e.target.value);
+                  setSourceLookupStatus("idle");
+                }}
+                onBlur={handleAutofillFromSource}
+                placeholder="https://huggingface.co/org/repo"
+              />
+              <div className="hint">Add the original model or dataset link. We can fill in some details for you.</div>
+              {sourceLookupStatus === "looking-up" && <div className="hint">Looking up source metadata…</div>}
+              {sourceLookupStatus === "done" && <div className="hint">✓ Autofilled from source metadata.</div>}
+              {sourceLookupStatus === "error" && <div className="card-error">{sourceLookupError}</div>}
             </div>
 
             <div className="field">
