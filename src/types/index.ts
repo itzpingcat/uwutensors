@@ -33,6 +33,7 @@ export const KIND = {
   BLOSSOM_SERVER_LIST: 10063,
   FOLLOW_LIST: 3, // NIP-02
   MUTE_LIST: 10000, // NIP-51 — the signed-in user's own block/mute list
+  DELETION_REQUEST: 5, // NIP-09 — request deletion of an event
 } as const;
 
 export type FileClass = "base" | "fine-tune" | "quant" | "n/a";

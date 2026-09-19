@@ -112,19 +112,10 @@ export function evaluateListing(
   settings: FilterSettings,
   ctx: ListingTrustContext
 ): FilterResult {
-  // Allowlist is a hard, independent gate, not one more vote in the
-  // ANY/ALL combine below: "I trust this specific publisher" doesn't mean
-  // "...or any listing that happens to pass some other, unrelated tier."
-  // It used to sit in the same `checks` array as NIP-05/WoT/anti-spam,
-  // which meant enabling ANY combine mode plus the allowlist plus one
-  // other tier could let a non-allowlisted author's listing through just
-  // by passing that other tier — defeating the entire point of having an
-  // allowlist. Now: if it's enabled and non-empty, it's checked first and
-  // is decisive on its own, before ANY/ALL is even considered.
+  // The allowlist is an independent override: a listed publisher is visible
+  // immediately, but not being listed does not hide an otherwise trustworthy
+  // listing. It is deliberately not included in the tier count below.
   const allowlistResult = checkAllowlist(listing.event, settings.allowlist);
-  if (allowlistResult === false) {
-    return { visible: false, passedTiers: [], failedTiers: ["allowlist"], skippedTiers: [] };
-  }
 
   const checks: Array<[string, boolean | undefined]> = [
     ["nip05", checkNip05(settings, ctx)],
@@ -135,9 +126,9 @@ export function evaluateListing(
     ["profileDescription", checkProfileDescription(settings.requireProfileDescription, ctx)],
   ];
 
-  const passedTiers: string[] = allowlistResult === true ? ["allowlist"] : [];
+  const passedTiers: string[] = [];
   const failedTiers: string[] = [];
-  const skippedTiers: string[] = allowlistResult === undefined ? ["allowlist"] : [];
+  const skippedTiers: string[] = [];
 
   for (const [name, result] of checks) {
     if (result === undefined) skippedTiers.push(name);
@@ -145,12 +136,10 @@ export function evaluateListing(
     else failedTiers.push(name);
   }
 
-  // An allowlist pass already earned visibility on its own (it's the
-  // strongest signal available — see the module doc above) regardless of
-  // what the other tiers say, so it short-circuits ANY/ALL the same way a
-  // failure above short-circuits to hidden.
+  // An allowlist pass earns visibility on its own, but a failed allowlist
+  // does not veto the ordinary tier calculation.
   if (allowlistResult === true) {
-    return { visible: true, passedTiers, failedTiers, skippedTiers };
+    return { visible: true, passedTiers: ["allowlist", ...passedTiers], failedTiers, skippedTiers };
   }
 
   const evaluated = passedTiers.length + failedTiers.length;

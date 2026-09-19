@@ -49,6 +49,16 @@ export function buildSeederRequestTags(
   return tags;
 }
 
+/** NIP-09 deletion request for a listing owned by the active identity. */
+export function buildDeletionRequestTags(listingEventId: string, listingPubkey: string, dTag: string): string[][] {
+  return [
+    ["e", listingEventId],
+    ["a", `${30099}:${listingPubkey}:${dTag}`],
+    ["client", CLIENT_TAG],
+    ["nonce", "0"],
+  ];
+}
+
 /**
  * Fields for publishing a fresh uwutensors-v1 kind 30099 listing. Unlike
  * the pre-v1 form this replaces, the infohash, magnet, torrent sha256

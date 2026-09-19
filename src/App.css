@@ -559,6 +559,7 @@ section h3 {
 .publisher-menu button:hover { background: var(--surface2); color: var(--accent); }
 .publisher-menu button:disabled { opacity: 0.55; cursor: wait; }
 .publisher-menu button:disabled:hover { background: transparent; color: var(--fg); }
+.profile-picture-preview { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 50%; margin: 6px 0 8px; border: 1px solid var(--border); }
 .create-account-modal { z-index: 2; }
 .nsec-create-value { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 16px; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); background: var(--surface2); word-break: break-all; }
 .nsec-create-value code { color: var(--accent); font-size: 12px; }

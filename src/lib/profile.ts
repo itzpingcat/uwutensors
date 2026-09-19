@@ -2,7 +2,7 @@ import { getSharedRelayPool } from "../hooks/useNostrCatalog";
 import { getSigningPubkey, signWithActiveIdentity } from "../nostr/identity";
 import { KIND, type NostrEvent, type ProfileMetadata } from "../types";
 
-export async function publishProfile(fields: { name?: string; display_name?: string; nip05?: string }): Promise<NostrEvent> {
+export async function publishProfile(fields: { name?: string; display_name?: string; nip05?: string; picture?: string }): Promise<NostrEvent> {
   const pubkey = await getSigningPubkey();
   const pool = getSharedRelayPool();
   if (!pool) throw new Error("Relays are still connecting. Try again in a moment.");
@@ -19,6 +19,7 @@ export async function publishProfile(fields: { name?: string; display_name?: str
     ...(fields.name !== undefined ? { name: fields.name } : {}),
     ...(fields.display_name !== undefined ? { display_name: fields.display_name } : {}),
     ...(fields.nip05 !== undefined ? { nip05: fields.nip05 } : {}),
+    ...(fields.picture !== undefined ? { picture: fields.picture } : {}),
   });
   const event = await signWithActiveIdentity({ kind: KIND.METADATA, created_at: Math.floor(Date.now() / 1000), tags: [], content });
   await pool.publish(event);

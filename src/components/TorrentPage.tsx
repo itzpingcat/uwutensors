@@ -5,7 +5,10 @@ import { useTorrentFiles } from "../hooks/useTorrentFiles";
 import { navigateToCatalog } from "../hooks/useRoute";
 import { TorrentOverview } from "./TorrentOverview";
 import { ModelCard } from "./ModelCard";
-import { isLoggedIn } from "../nostr/identity";
+import { getSigningPubkey, isLoggedIn } from "../nostr/identity";
+import { KIND } from "../types";
+import { buildDeletionRequestTags } from "../nostr/submit";
+import { useMineAndPublish } from "../hooks/useMineAndPublish";
 import { getPublisherListState, updatePublisherList } from "../lib/publisherActions";
 
 type PageTab = "overview" | "files" | "community";
@@ -55,6 +58,9 @@ export function TorrentPage({ listing, onPublished }: Props) {
   const [publisherState, setPublisherState] = useState({ followed: false, blocked: false });
   const [publisherStateLoaded, setPublisherStateLoaded] = useState(false);
   const [publisherAction, setPublisherAction] = useState<"follow" | "block" | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [deletionAction, setDeletionAction] = useState(false);
+  const deletion = useMineAndPublish();
   const title = listing.lab ? `${listing.lab} / ${listing.displayName ?? listing.name}` : listing.displayName ?? listing.name;
 
   useEffect(() => {
@@ -65,6 +71,37 @@ export function TorrentPage({ listing, onPublished }: Props) {
       .catch(() => undefined)
       .finally(() => setPublisherStateLoaded(true));
   }, [menuOpen, listing.event.pubkey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isLoggedIn()) {
+      setIsOwner(false);
+      return;
+    }
+    getSigningPubkey().then((pubkey) => {
+      if (!cancelled) setIsOwner(pubkey === listing.event.pubkey);
+    }).catch(() => {
+      if (!cancelled) setIsOwner(false);
+    });
+    return () => { cancelled = true; };
+  }, [listing.event.pubkey]);
+
+  async function requestDeletion() {
+    if (!isOwner || deletionAction || deletion.submitting) return;
+    if (!window.confirm("Send a good-faith request to delete this listing? It will remain visible until relays and clients honor the request.")) return;
+    setDeletionAction(true);
+    setActionError(null);
+    const result = await deletion.submit(
+      KIND.DELETION_REQUEST,
+      buildDeletionRequestTags(listing.event.id, listing.event.pubkey, listing.infohash),
+      "Good-faith deletion request from the listing owner."
+    );
+    setDeletionAction(false);
+    if (result) {
+      setMenuOpen(false);
+      onPublished(`Deletion request published. (${result.okCount}/${result.total} relays, PoW: ${result.powBits} bits.)`);
+    }
+  }
 
   async function handlePublisherAction(action: "follow" | "block") {
     if (!isLoggedIn() || !publisherStateLoaded || publisherAction) return;
@@ -95,6 +132,7 @@ export function TorrentPage({ listing, onPublished }: Props) {
         {menuOpen && <div className="publisher-menu">
           <button disabled={!publisherStateLoaded || !!publisherAction} onClick={() => handlePublisherAction("follow")}>{!publisherStateLoaded ? "Loading…" : publisherState.followed ? "Unfollow user" : "Follow publisher"}</button>
           <button disabled={!publisherStateLoaded || !!publisherAction} onClick={() => handlePublisherAction("block")}>{!publisherStateLoaded ? "Loading…" : publisherState.blocked ? "Unblock user" : "Block publisher"}</button>
+          {isOwner && <button disabled={deletion.submitting || deletionAction} onClick={requestDeletion}>{deletion.submitting ? "Mining…" : "Request deletion"}</button>}
         </div>}
       </div>
       {actionError && <div className="card-error">{actionError}</div>}

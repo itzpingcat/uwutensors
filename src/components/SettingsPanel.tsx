@@ -6,6 +6,7 @@ import { getSharedRelayPool } from "../hooks/useNostrCatalog";
 import { KIND } from "../types";
 import { useCatalogStore } from "../store/catalogStore";
 import { verifyNip05 } from "../lib/nip05";
+import { uploadToBlossom } from "../lib/blossom";
 
 export type SettingsTab = "profile" | "keys" | "relays" | "filtering" | "pumps";
 
@@ -36,6 +37,8 @@ export function SettingsPanel({
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [profileName, setProfileName] = useState("");
   const [profileNip05, setProfileNip05] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
+  const [pictureFile, setPictureFile] = useState<File | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileBusy, setProfileBusy] = useState(false);
   const setProfile = useCatalogStore((s) => s.setProfile);
@@ -52,6 +55,7 @@ export function SettingsPanel({
       const profile = event ? profileFromEvent(event) : cached;
       setProfileName(profile?.name ?? profile?.displayName ?? "");
       setProfileNip05(profile?.nip05 ?? "");
+      setProfilePicture(profile?.picture ?? "");
     }).catch(() => undefined);
   }, []);
 
@@ -63,9 +67,16 @@ export function SettingsPanel({
         const pubkey = await getSigningPubkey();
         if (!(await verifyNip05(nip05, pubkey))) throw new Error("That NIP-05 identifier does not verify for this account.");
       }
-      const event = await publishProfile({ name: profileName.trim(), display_name: profileName.trim(), nip05 });
+      let picture = profilePicture.trim();
+      if (pictureFile) {
+        const urls = await uploadToBlossom(pictureFile, settings.blossom.servers);
+        picture = urls[0];
+      }
+      const event = await publishProfile({ name: profileName.trim(), display_name: profileName.trim(), nip05, picture });
       const profile = profileFromEvent(event);
       if (profile) setProfile(profile);
+      setProfilePicture(picture);
+      setPictureFile(null);
       setProfileMessage("Profile saved.");
     } catch (err) { setProfileMessage(err instanceof Error ? err.message : "Couldn't save profile."); }
     finally { setProfileBusy(false); }
@@ -118,6 +129,15 @@ export function SettingsPanel({
             <label className="field">NIP-05 identifier
               <input value={profileNip05} onChange={(e) => setProfileNip05(e.target.value)} placeholder="you@example.com" />
               <div className="hint">Your NIP-05 must resolve to this account before it can be saved.</div>
+            </label>
+            <label className="field">Profile picture
+              {profilePicture && <img className="profile-picture-preview" src={profilePicture} alt="Current profile" />}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+                onChange={(e) => setPictureFile(e.target.files?.[0] ?? null)}
+              />
+              <div className="hint">Upload an image to your configured Blossom servers, then save your profile.</div>
             </label>
             <button className="btn" onClick={saveProfile} disabled={profileBusy}>{profileBusy ? "Saving…" : "Save profile"}</button>
             {profileMessage && <div className={profileMessage === "Profile saved." ? "hint" : "card-error"}>{profileMessage}</div>}
