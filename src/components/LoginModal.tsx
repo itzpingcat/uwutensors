@@ -7,6 +7,7 @@ import {
   logIn,
   setLocalLoginMode,
 } from "../nostr/identity";
+import { publishProfile } from "../lib/profile";
 
 /**
  * Real login picker with three explicit paths — this replaces the old
@@ -27,6 +28,10 @@ export function LoginModal({
   const [nsecInput, setNsecInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newAccountProfile, setNewAccountProfile] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newIdentity, setNewIdentity] = useState<ReturnType<typeof createNewLocalIdentity> | null>(null);
+  const [nsecCopyLabel, setNsecCopyLabel] = useState("Copy");
 
   async function tryExtension() {
     setError(null);
@@ -56,11 +61,42 @@ export function LoginModal({
     }
   }
 
-  function createNew() {
+  function startNewAccount() {
     setError(null);
-    const identity = createNewLocalIdentity();
+    setNewUsername("");
+    setNewIdentity(createNewLocalIdentity());
     setLocalLoginMode();
-    onLoggedIn(identity.pubkeyHex);
+    setNewAccountProfile(true);
+  }
+
+  async function createNew() {
+    setError(null);
+    if (!newIdentity) return;
+    if (!newUsername.trim()) {
+      onLoggedIn(newIdentity.pubkeyHex);
+      return;
+    }
+    setBusy(true);
+    try {
+      await publishProfile({ name: newUsername.trim(), display_name: newUsername.trim() });
+      onLoggedIn(newIdentity.pubkeyHex);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Account created, but the profile could not be published.");
+      onLoggedIn(newIdentity.pubkeyHex);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyNewNsec() {
+    if (!newIdentity) return;
+    try {
+      await navigator.clipboard.writeText(newIdentity.nsec);
+      setNsecCopyLabel("Copied!");
+    } catch {
+      setNsecCopyLabel("Copy failed");
+    }
+    setTimeout(() => setNsecCopyLabel("Copy"), 1500);
   }
 
   return (
@@ -85,7 +121,7 @@ export function LoginModal({
               <div className="setting-title">Paste an existing nsec</div>
               <div className="hint">Log in with a private key you already have, without installing an extension.</div>
             </button>
-            <button className="login-option" onClick={createNew}>
+            <button className="login-option" onClick={startNewAccount} disabled={busy}>
               <div className="setting-title">Create a new account</div>
               <div className="hint">
                 Generates a brand new local identity and shows you its nsec. There's no profile or follow graph
@@ -121,6 +157,29 @@ export function LoginModal({
 
         {error && <div className="account-dropdown-error">{error}</div>}
       </div>
+      {newAccountProfile && newIdentity && (
+        <div className="modal-overlay" onClick={() => !busy && setNewAccountProfile(false)}>
+          <div className="modal login-modal create-account-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => !busy && setNewAccountProfile(false)}>&times;</button>
+            <h2>Create a new account</h2>
+            <p className="hint">
+              Save this private key somewhere safe before continuing. It is the only way to recover this account;
+              if you lose it, the account cannot be restored.
+            </p>
+            <div className="nsec-create-value">
+              <code>{newIdentity.nsec}</code>
+              <button className="btn-small nsec-copy-button" onClick={copyNewNsec}>{nsecCopyLabel}</button>
+            </div>
+            <label className="create-account-field">Display name / username <span className="opt">(optional)</span>
+              <input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="How others should identify you" autoFocus />
+            </label>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setNewAccountProfile(false)} disabled={busy}>Cancel</button>
+              <button className="btn" onClick={createNew} disabled={busy}>{busy ? "Creating…" : "Create account"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

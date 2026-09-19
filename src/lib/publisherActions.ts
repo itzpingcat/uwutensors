@@ -22,8 +22,12 @@ export async function updatePublisherList(pubkey: string, action: "follow" | "bl
   if (!pool) throw new Error("Relays are still connecting. Try again in a moment.");
   const kind = action === "follow" ? KIND.FOLLOW_LIST : KIND.MUTE_LIST;
   const current = await pool.fetchEvent({ kinds: [kind], authors: [me] });
-  const existing = current?.tags.some((tag) => tag[0] === "p" && tag[1] === pubkey) ?? false;
-  const tags = current?.tags.filter((tag) => tag[0] !== "p" || tag[1] !== pubkey) ?? [];
+  // A missing response can mean a relay timeout or an unready pool, not an
+  // actually empty list. Never replace a list we failed to read: doing so
+  // would silently discard every other follow/mute entry.
+  if (!current) throw new Error("Couldn't load your current list safely. Please try again.");
+  const existing = current.tags.some((tag) => tag[0] === "p" && tag[1] === pubkey);
+  const tags = current.tags.filter((tag) => tag[0] !== "p" || tag[1] !== pubkey);
   if (!existing) tags.push(["p", pubkey]);
   const event = await signWithActiveIdentity({ kind, created_at: Math.floor(Date.now() / 1000), tags, content: current?.content ?? "" });
   await pool.publish(event);

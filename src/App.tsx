@@ -165,6 +165,9 @@ export default function App() {
                   <button className="account-dropdown-item" onClick={() => openTab("keys")}>
                     Keys
                   </button>
+                  <button className="account-dropdown-item" onClick={() => openTab("profile")}>
+                    Profile
+                  </button>
                   <button className="account-dropdown-item" onClick={() => openTab("relays")}>
                     Relays
                   </button>

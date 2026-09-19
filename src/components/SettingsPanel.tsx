@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
-import { getLoginMode, getOrCreateLocalIdentity } from "../nostr/identity";
+import { getLoginMode, getOrCreateLocalIdentity, getSigningPubkey, isLoggedIn } from "../nostr/identity";
+import { publishProfile, profileFromEvent } from "../lib/profile";
+import { getSharedRelayPool } from "../hooks/useNostrCatalog";
+import { KIND } from "../types";
+import { useCatalogStore } from "../store/catalogStore";
+import { verifyNip05 } from "../lib/nip05";
 
-export type SettingsTab = "keys" | "relays" | "filtering" | "pumps";
+export type SettingsTab = "profile" | "keys" | "relays" | "filtering" | "pumps";
 
 export function SettingsPanel({
   onClose,
@@ -29,10 +34,42 @@ export function SettingsPanel({
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [nsecRevealed, setNsecRevealed] = useState(false);
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const [profileName, setProfileName] = useState("");
+  const [profileNip05, setProfileNip05] = useState("");
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const setProfile = useCatalogStore((s) => s.setProfile);
 
   const f = settings.filters;
   const identity = getOrCreateLocalIdentity();
   const loginMode = getLoginMode();
+
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+    getSigningPubkey().then(async (pubkey) => {
+      const cached = useCatalogStore.getState().profiles.get(pubkey);
+      const event = await getSharedRelayPool()?.fetchEvent({ kinds: [KIND.METADATA], authors: [pubkey] });
+      const profile = event ? profileFromEvent(event) : cached;
+      setProfileName(profile?.name ?? profile?.displayName ?? "");
+      setProfileNip05(profile?.nip05 ?? "");
+    }).catch(() => undefined);
+  }, []);
+
+  async function saveProfile() {
+    setProfileBusy(true); setProfileMessage(null);
+    try {
+      const nip05 = profileNip05.trim();
+      if (nip05) {
+        const pubkey = await getSigningPubkey();
+        if (!(await verifyNip05(nip05, pubkey))) throw new Error("That NIP-05 identifier does not verify for this account.");
+      }
+      const event = await publishProfile({ name: profileName.trim(), display_name: profileName.trim(), nip05 });
+      const profile = profileFromEvent(event);
+      if (profile) setProfile(profile);
+      setProfileMessage("Profile saved.");
+    } catch (err) { setProfileMessage(err instanceof Error ? err.message : "Couldn't save profile."); }
+    finally { setProfileBusy(false); }
+  }
 
   async function copyNsec() {
     try {
@@ -54,6 +91,7 @@ export function SettingsPanel({
         <h2>Settings</h2>
 
         <div className="settings-tabs">
+          <button className={"settings-tab" + (tab === "profile" ? " active" : "")} onClick={() => setTab("profile")}>Profile</button>
           <button className={"settings-tab" + (tab === "keys" ? " active" : "")} onClick={() => setTab("keys")}>
             Keys
           </button>
@@ -70,6 +108,21 @@ export function SettingsPanel({
             Pumps
           </button>
         </div>
+
+        {tab === "profile" && <section>
+          <h3>Profile</h3>
+          {!isLoggedIn() ? <p className="hint">Log in to edit your profile.</p> : <>
+            <label className="field">Username / display name
+              <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="Your name" />
+            </label>
+            <label className="field">NIP-05 identifier
+              <input value={profileNip05} onChange={(e) => setProfileNip05(e.target.value)} placeholder="you@example.com" />
+              <div className="hint">Your NIP-05 must resolve to this account before it can be saved.</div>
+            </label>
+            <button className="btn" onClick={saveProfile} disabled={profileBusy}>{profileBusy ? "Saving…" : "Save profile"}</button>
+            {profileMessage && <div className={profileMessage === "Profile saved." ? "hint" : "card-error"}>{profileMessage}</div>}
+          </>}
+        </section>}
 
         {tab === "keys" && (
           <section>
