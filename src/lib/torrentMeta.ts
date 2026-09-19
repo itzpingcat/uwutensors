@@ -91,6 +91,21 @@ export function buildMagnetUri(infohash: string, name: string, trackers: string[
   return `magnet:?xt=urn:btih:${infohash}&${params.toString()}`;
 }
 
+/** Recover a human-facing HF repo name when a torrent uses a commit SHA as
+ * info.name for its webseed URL layout. */
+export function inferDisplayNameFromWebseeds(webseeds: string[]): string | undefined {
+  for (const webseed of webseeds) {
+    try {
+      const parts = new URL(webseed).pathname.split("/").filter(Boolean);
+      const resolveIndex = parts.indexOf("resolve");
+      if (resolveIndex >= 2) return decodeURIComponent(parts[resolveIndex - 1]);
+    } catch {
+      // Try the next webseed.
+    }
+  }
+  return undefined;
+}
+
 /**
  * Decodes a fetched .torrent file's bytes into everything a v1 listing
  * needs. Throws if the file isn't a well-formed single/multi-file BEP-3

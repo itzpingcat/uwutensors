@@ -1,6 +1,6 @@
-// vite-plugin-singlefile always emits dist/index.html; rename it to match
-// the project's UwUTensors.html spec.
-import { renameSync, existsSync, rmSync } from "node:fs";
+// vite-plugin-singlefile always emits dist/index.html. Keep that conventional
+// filename as well as the project's UwUTensors.html distribution name.
+import { copyFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const dist = "dist";
@@ -8,7 +8,7 @@ const src = join(dist, "index.html");
 const dest = join(dist, "UwUTensors.html");
 
 if (existsSync(src)) {
-  renameSync(src, dest);
+  copyFileSync(src, dest);
   console.log(`Wrote ${dest}`);
 } else {
   console.error(`Expected ${src} to exist after build`);

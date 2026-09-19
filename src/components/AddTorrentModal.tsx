@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { KIND } from "../types";
 import { buildAddTorrentTags, type AddTorrentFields } from "../nostr/submit";
-import { deriveTorrentMeta, type DerivedTorrentMeta } from "../lib/torrentMeta";
+import { deriveTorrentMeta, inferDisplayNameFromWebseeds, type DerivedTorrentMeta } from "../lib/torrentMeta";
 import { lookupSourceMetadata, parseSourceUrl } from "../lib/sourceLookup";
 import { isLoggedIn } from "../nostr/identity";
 import { useMineAndPublish } from "../hooks/useMineAndPublish";
@@ -58,6 +58,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
     try {
       const info = await lookupSourceMetadata(hf.trim(), listingType === "dataset");
       if (!name.trim() && info.name) setName(info.name);
+      else if (info.name && meta && (/^[0-9a-f]{40}$/i.test(name.trim()) || name.trim() === meta.name)) setName(info.name);
       if (!lab.trim() && info.lab) setLab(info.lab);
       if (info.type) setListingType(info.type);
       if (modelType === "n/a" && info.modelType && info.modelType !== "n/a") setModelType(info.modelType);
@@ -80,7 +81,7 @@ export function AddTorrentModal({ onClose, onPublished }: Props) {
       const bytes = await file.arrayBuffer();
       const derived = await deriveTorrentMeta(bytes);
       setMeta(derived);
-      if (!name.trim()) setName(derived.name);
+      if (!name.trim()) setName(inferDisplayNameFromWebseeds(derived.webseeds) ?? derived.name);
       setFetchStatus("ready");
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Failed to read .torrent file.");
