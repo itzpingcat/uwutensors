@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 Claude outputs/
+tmp
+*.torrent
