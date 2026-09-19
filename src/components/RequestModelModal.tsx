@@ -8,11 +8,15 @@ import { PowProgressBar } from "./PowProgressBar";
 interface Props {
   onClose: () => void;
   onPublished: (msg: string) => void;
+  resourceType?: "model" | "dataset";
 }
 
-const TYPES = ["all", "base", "fine-tune", "quant"];
+const MODEL_TYPES = ["all", "base", "fine-tune", "quant"];
+const DATASET_TYPES = ["all", "text", "image", "audio", "video", "tabular"];
 
-export function RequestModelModal({ onClose, onPublished }: Props) {
+export function RequestModelModal({ onClose, onPublished, resourceType = "model" }: Props) {
+  const noun = resourceType;
+  const types = resourceType === "dataset" ? DATASET_TYPES : MODEL_TYPES;
   const [name, setName] = useState("");
   const [links, setLinks] = useState("");
   const [type, setType] = useState("all");
@@ -40,15 +44,15 @@ export function RequestModelModal({ onClose, onPublished }: Props) {
         <button className="modal-close" onClick={onClose}>
           &times;
         </button>
-        <h2>Request a model</h2>
+        <h2>Request a {noun}</h2>
         <p className="req-intro">
-          Want a model added to the listings? Fill out this form to show your interest. We or someone
-          else may or may not add it — no guarantees, just signal.
+          Want a {noun} added to the listings? Fill out this form to show your interest. We or someone
+          else may or may not add it — no guarantees, just a signal.
         </p>
 
         <div className="field">
           <label>
-            Model name <span className="req">*</span>
+            {noun[0].toUpperCase() + noun.slice(1)} name <span className="req">*</span>
           </label>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
@@ -68,7 +72,7 @@ export function RequestModelModal({ onClose, onPublished }: Props) {
           <label>Type</label>
           <div className="seg-row">
             <div className="seg">
-              {TYPES.map((t) => (
+          {types.map((t) => (
                 <button key={t} className={type === t ? "active" : ""} onClick={() => setType(t)}>
                   {t}
                 </button>
@@ -77,11 +81,11 @@ export function RequestModelModal({ onClose, onPublished }: Props) {
           </div>
         </div>
 
-        <div className="field">
+        {resourceType === "model" && <div className="field">
           <label>VRAM (GB)</label>
           <input value={vram} onChange={(e) => setVram(e.target.value)} />
           <div className="hint">How much VRAM you have to run the model.</div>
-        </div>
+        </div>}
 
         <PowProgressBar active={submitting} pct={pct} label={label} />
         {!submitting && (

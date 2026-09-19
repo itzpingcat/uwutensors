@@ -9,21 +9,26 @@ export interface CatalogFilters {
   search: string;
   format: string; // quant_type or "all"
   fileClass: string; // "all" | FileClass
+  type: "model" | "dataset";
+  sort: SortOption;
 }
 
-const DEFAULT_FILTERS: CatalogFilters = { search: "", format: "all", fileClass: "all" };
+export type SortOption = "downloads" | "newest" | "oldest" | "largest" | "smallest" | "name-asc" | "name-desc";
+
+const DEFAULT_FILTERS: CatalogFilters = { search: "", format: "all", fileClass: "all", type: "model", sort: "downloads" };
 
 export function useFilteredListings() {
   const listings = useCatalogStore((s) => s.listings);
   const nip05Verified = useCatalogStore((s) => s.nip05Verified);
   const profiles = useCatalogStore((s) => s.profiles);
   const mutedPubkeys = useCatalogStore((s) => s.mutedPubkeys);
+  const pumpStatus = useCatalogStore((s) => s.pumpStatus);
   const filterSettings = useSettingsStore((s) => s.settings.filters);
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
 
   const results = useMemo(() => {
     const all = Array.from(listings.values());
-    return all.filter(
+    const results = all.filter(
       (listing) =>
         // The user's own NIP-51 mute list is enforced unconditionally,
         // ahead of everything else and with no settings toggle — see
@@ -34,6 +39,7 @@ export function useFilteredListings() {
         passesUiFilters(listing, filters) &&
         passesTrustPipeline(listing)
     );
+    return [...results].sort((a, b) => compareListings(a, b, filters.sort, pumpStatus));
 
     function passesTrustPipeline(listing: TorrentListing): boolean {
       // useNip05Verification (run from CatalogGrid, over every listing —
@@ -77,16 +83,30 @@ export function useFilteredListings() {
       });
       return visible;
     }
-  }, [listings, filters, filterSettings, nip05Verified, profiles, mutedPubkeys]);
+  }, [listings, filters, filterSettings, nip05Verified, profiles, mutedPubkeys, pumpStatus]);
 
   const totalSize = useMemo(() => results.reduce((sum, l) => sum + l.totalSize, 0), [results]);
 
   return { listings: results, filters, setFilters, totalSize };
 }
 
+function compareListings(a: TorrentListing, b: TorrentListing, sort: SortOption, pumps: Map<string, { downloads: number }>): number {
+  if (sort === "downloads") return (pumps.get(b.infohash)?.downloads ?? 0) - (pumps.get(a.infohash)?.downloads ?? 0) || compareName(a, b);
+  if (sort === "newest") return b.event.created_at - a.event.created_at || compareName(a, b);
+  if (sort === "oldest") return a.event.created_at - b.event.created_at || compareName(a, b);
+  if (sort === "largest") return b.totalSize - a.totalSize || compareName(a, b);
+  if (sort === "smallest") return a.totalSize - b.totalSize || compareName(a, b);
+  return (sort === "name-desc" ? -1 : 1) * compareName(a, b);
+}
+
+function compareName(a: TorrentListing, b: TorrentListing): number {
+  return (a.displayName ?? a.name).localeCompare(b.displayName ?? b.name, undefined, { sensitivity: "base" });
+}
+
 function passesUiFilters(listing: TorrentListing, filters: CatalogFilters): boolean {
   if (filters.format !== "all" && listing.quantType !== filters.format) return false;
   if (filters.fileClass !== "all" && listing.fileClass !== filters.fileClass) return false;
+  if (listing.type !== filters.type) return false;
   if (filters.search.trim()) {
     const q = filters.search.trim().toLowerCase();
     const haystack = [

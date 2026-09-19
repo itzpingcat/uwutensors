@@ -23,10 +23,13 @@ export function usePumpPolling(visibleInfohashes: string[]) {
   const enabled = useSettingsStore((s) => s.settings.pumps.enabled);
   const apiUrl = useSettingsStore((s) => s.settings.pumps.apiUrl);
   const setPumpStatus = useCatalogStore((s) => s.setPumpStatus);
+  const setPumpHealth = useCatalogStore((s) => s.setPumpHealth);
   const lastFetchRef = useRef<Map<string, number>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
     if (!enabled || !apiUrl || visibleInfohashes.length === 0) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -37,8 +40,14 @@ export function usePumpPolling(visibleInfohashes: string[]) {
         return !last || now - last >= CACHE_TTL_MS;
       });
       if (needed.length === 0) return;
-      fetchPumps(apiUrl, needed).then((data) => {
-        if (!data) return;
+      fetchPumps(apiUrl, needed).then((result) => {
+        if (requestId !== requestIdRef.current) return;
+        if (!result) {
+          setPumpHealth("failed");
+          return;
+        }
+        setPumpHealth("available");
+        const data = result;
         for (const ih of needed) {
           lastFetchRef.current.set(ih, Date.now());
           setPumpStatus({
@@ -52,8 +61,9 @@ export function usePumpPolling(visibleInfohashes: string[]) {
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      requestIdRef.current++;
     };
-  }, [enabled, apiUrl, visibleInfohashes.join(","), setPumpStatus]);
+  }, [enabled, apiUrl, visibleInfohashes.join(","), setPumpStatus, setPumpHealth]);
 }
 
 async function fetchPumps(apiUrl: string, infohashes: string[]): Promise<PumpApiResponse | null> {

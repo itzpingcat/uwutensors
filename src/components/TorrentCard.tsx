@@ -3,7 +3,7 @@ import type { TorrentListing } from "../types";
 import { humanSize, shortHash } from "../lib/format";
 import { fetchAndVerifyTorrent } from "../lib/torrentDownload";
 import { useCatalogStore } from "../store/catalogStore";
-import { navigateToModel } from "../hooks/useRoute";
+import { navigateToTorrent } from "../hooks/useRoute";
 
 interface Props {
   listing: TorrentListing;
@@ -58,7 +58,7 @@ export function TorrentCard({ listing }: Props) {
   return (
     <div
       className="card"
-      onClick={() => navigateToModel(listing.infohash)}
+      onClick={() => navigateToTorrent(listing.infohash)}
     >
       {/* A real anchor, not just a div click, so the model page has a
           genuine URL: right-click "copy link", open-in-new-tab, and
@@ -68,10 +68,10 @@ export function TorrentCard({ listing }: Props) {
           the same navigation anyway. */}
       <a
         className="card-title"
-        href={`#/model/${encodeURIComponent(listing.infohash)}`}
+        href={`#/torrent/${encodeURIComponent(listing.infohash)}`}
         onClick={(e) => {
           e.preventDefault();
-          navigateToModel(listing.infohash);
+          navigateToTorrent(listing.infohash);
         }}
       >
         {title}

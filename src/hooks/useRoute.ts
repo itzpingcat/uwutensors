@@ -3,18 +3,18 @@ import { useEffect, useState } from "react";
 /**
  * Minimal hash-based router — no dependency, since this app is a single
  * static HTML bundle with no server to configure history-API fallback
- * routes on. `#/model/<infohash>` gives each listing a real, bookmarkable,
+ * routes on. `#/torrent/<infohash>` gives each listing a real, bookmarkable,
  * shareable URL and a browser-back/forward history entry, instead of only
  * a modal that vanishes on refresh and leaves no address to share.
  */
-export type Route = { name: "catalog" } | { name: "model"; infohash: string };
+export type Route = { name: "catalog" } | { name: "torrent"; infohash: string };
 
 function parseHash(hash: string): Route {
   // location.hash includes the leading '#'; strip it and any leading '/'.
   const path = hash.replace(/^#\/?/, "");
   const [segment, infohash] = path.split("/");
-  if (segment === "model" && infohash) {
-    return { name: "model", infohash: decodeURIComponent(infohash) };
+  if (segment === "torrent" && infohash) {
+    return { name: "torrent", infohash: decodeURIComponent(infohash) };
   }
   return { name: "catalog" };
 }
@@ -33,8 +33,8 @@ export function useRoute(): Route {
   return route;
 }
 
-export function navigateToModel(infohash: string): void {
-  window.location.hash = `/model/${encodeURIComponent(infohash)}`;
+export function navigateToTorrent(infohash: string): void {
+  window.location.hash = `/torrent/${encodeURIComponent(infohash)}`;
 }
 
 export function navigateToCatalog(): void {

@@ -294,6 +294,11 @@ body {
   display: flex; gap: 10px; padding: 14px 24px; align-items: center;
   border-bottom: 1px solid var(--border); flex-wrap: wrap;
 }
+.catalog-type-toggle { display: flex; gap: 14px; align-items: center; white-space: nowrap; }
+.catalog-type-toggle button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font: 600 12px var(--sans); padding: 8px 0; }
+.catalog-type-toggle button.active, .catalog-type-toggle button:hover { color: var(--accent); }
+.sort-control { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sort-control select { background: var(--surface); border: 1px solid var(--border); color: var(--fg); padding: 7px 9px; border-radius: var(--radius-sm); font: 12px var(--sans); }
 .toolbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 #search-wrap { position: relative; flex: 1; min-width: 200px; }
 #search-wrap::before {

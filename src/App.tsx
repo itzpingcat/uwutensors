@@ -40,7 +40,7 @@ export default function App() {
   const route = useRoute();
   const listings = useCatalogStore((s) => s.listings);
   const routeListing =
-    route.name === "model" ? listings.get(route.infohash) : undefined;
+    route.name === "torrent" ? listings.get(route.infohash) : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +189,7 @@ export default function App() {
       </header>
 
       <main id="content">
-        {route.name === "model" ? (
+        {route.name === "torrent" ? (
           routeListing ? (
             <TorrentPage listing={routeListing} onPublished={setBannerMsg} />
           ) : (

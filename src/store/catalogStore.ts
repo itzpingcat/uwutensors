@@ -23,6 +23,7 @@ interface CatalogState {
   profiles: Map<string, ProfileMetadata>; // pubkey -> kind 0 metadata
   nip05Verified: Map<string, boolean>; // pubkey -> whether their claimed NIP-05 identifier actually resolves to them
   mutedPubkeys: Set<string>; // the signed-in user's own NIP-51 kind 10000 mute list — always enforced, not a settings toggle
+  pumpHealth: "unknown" | "available" | "failed";
 
   upsertListing: (listing: TorrentListing) => void;
   addApprovedId: (id: string) => void;
@@ -36,6 +37,7 @@ interface CatalogState {
   setProfile: (profile: ProfileMetadata) => void;
   setNip05Verified: (pubkey: string, verified: boolean) => void;
   setMutedPubkeys: (muted: Set<string>) => void;
+  setPumpHealth: (health: "unknown" | "available" | "failed") => void;
   reset: () => void;
 }
 
@@ -53,6 +55,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   profiles: new Map(),
   nip05Verified: new Map(),
   mutedPubkeys: new Set(),
+  pumpHealth: "unknown",
 
   upsertListing: (listing) =>
     set((s) => {
@@ -110,6 +113,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
     }),
 
   setMutedPubkeys: (muted) => set({ mutedPubkeys: muted }),
+  setPumpHealth: (pumpHealth) => set({ pumpHealth }),
 
   reset: () =>
     set({
@@ -120,5 +124,6 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       pumpStatus: new Map(),
       seederInfo: new Map(),
       latestClientAnnouncement: null,
+      pumpHealth: "unknown",
     }),
 }));
