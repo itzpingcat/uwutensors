@@ -162,11 +162,11 @@ export default function App() {
             {accountMenuOpen && (
               <div className="account-dropdown">
                 <div className="account-dropdown-menu">
-                  <button className="account-dropdown-item" onClick={() => openTab("keys")}>
-                    Keys
-                  </button>
                   <button className="account-dropdown-item" onClick={() => openTab("profile")}>
                     Profile
+                  </button>
+                  <button className="account-dropdown-item" onClick={() => openTab("keys")}>
+                    Keys
                   </button>
                   <button className="account-dropdown-item" onClick={() => openTab("relays")}>
                     Relays
