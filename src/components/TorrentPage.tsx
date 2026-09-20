@@ -56,33 +56,45 @@ export function TorrentPage({ listing, onPublished }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [publisherState, setPublisherState] = useState({ followed: false, blocked: false });
-  const [publisherStateLoaded, setPublisherStateLoaded] = useState(false);
+  // The key of the last completed publisher-state load, instead of a boolean
+  // flag reset synchronously in an effect: "loaded" is just "the load for
+  // this pubkey (while the menu is open) has finished".
+  const [publisherLoadedKey, setPublisherLoadedKey] = useState<string | null>(null);
   const [publisherAction, setPublisherAction] = useState<"follow" | "block" | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
+  // The pubkey whose ownership has been resolved, instead of a boolean reset
+  // synchronously in an effect: isOwner is derived, so there's no stale state
+  // to clear when the listing (or login state) changes.
+  const [ownerPubkey, setOwnerPubkey] = useState<string | null>(null);
   const [deletionAction, setDeletionAction] = useState(false);
   const deletion = useMineAndPublish();
   const title = listing.lab ? `${listing.lab} / ${listing.displayName ?? listing.name}` : listing.displayName ?? listing.name;
+  const publisherStateLoaded = menuOpen && publisherLoadedKey === listing.event.pubkey;
+  const isOwner = isLoggedIn() && ownerPubkey === listing.event.pubkey;
 
   useEffect(() => {
-    if (!menuOpen || !isLoggedIn()) return;
-    setPublisherStateLoaded(false);
+    if (!menuOpen || !isLoggedIn() || publisherLoadedKey === listing.event.pubkey) return;
+    let cancelled = false;
     getPublisherListState(listing.event.pubkey)
-      .then((state) => setPublisherState(state))
-      .catch(() => undefined)
-      .finally(() => setPublisherStateLoaded(true));
-  }, [menuOpen, listing.event.pubkey]);
+      .then((state) => {
+        if (!cancelled) {
+          setPublisherState(state);
+          setPublisherLoadedKey(listing.event.pubkey);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPublisherLoadedKey(listing.event.pubkey);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [menuOpen, listing.event.pubkey, publisherLoadedKey]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!isLoggedIn()) {
-      setIsOwner(false);
-      return;
-    }
+    if (!isLoggedIn()) return;
     getSigningPubkey().then((pubkey) => {
-      if (!cancelled) setIsOwner(pubkey === listing.event.pubkey);
-    }).catch(() => {
-      if (!cancelled) setIsOwner(false);
-    });
+      if (!cancelled) setOwnerPubkey(pubkey);
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [listing.event.pubkey]);
 

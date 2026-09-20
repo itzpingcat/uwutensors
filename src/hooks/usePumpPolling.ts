@@ -29,8 +29,12 @@ export function usePumpPolling(visibleInfohashes: string[]) {
   const requestIdRef = useRef(0);
 
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
     if (!enabled || !apiUrl || visibleInfohashes.length === 0) return;
+    // Local stale flag instead of poking a ref in the cleanup function:
+    // a ref's .current may have been reassigned by the time cleanup runs,
+    // while this closed-over flag is exactly this effect run's state.
+    let stale = false;
+    const requestId = ++requestIdRef.current;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -41,7 +45,7 @@ export function usePumpPolling(visibleInfohashes: string[]) {
       });
       if (needed.length === 0) return;
       fetchPumps(apiUrl, needed).then((result) => {
-        if (requestId !== requestIdRef.current) return;
+        if (stale || requestId !== requestIdRef.current) return;
         if (!result) {
           setPumpHealth("failed");
           return;
@@ -60,10 +64,10 @@ export function usePumpPolling(visibleInfohashes: string[]) {
     }, DEBOUNCE_MS);
 
     return () => {
+      stale = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      requestIdRef.current++;
     };
-  }, [enabled, apiUrl, visibleInfohashes.join(","), setPumpStatus, setPumpHealth]);
+  }, [enabled, apiUrl, visibleInfohashes, setPumpStatus, setPumpHealth]);
 }
 
 async function fetchPumps(apiUrl: string, infohashes: string[]): Promise<PumpApiResponse | null> {

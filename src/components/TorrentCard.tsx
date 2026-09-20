@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TorrentListing } from "../types";
-import { humanSize, shortHash } from "../lib/format";
+import { humanSize, shortHash, normalizeSourceHost } from "../lib/format";
 import { fetchAndVerifyTorrent } from "../lib/torrentDownload";
 import { useCatalogStore } from "../store/catalogStore";
 import { navigateToTorrent } from "../hooks/useRoute";
@@ -15,6 +15,7 @@ export function TorrentCard({ listing }: Props) {
   const seederInfo = useCatalogStore((s) => s.seederInfo.get(listing.infohash));
 
   const title = listing.displayName ?? listing.name;
+  const sourceUrl = listing.source ? normalizeSourceHost(listing.source) : null;
   // seederInfo is the unified, source-labeled count (see useSeederCount):
   // a direct wss:// tracker scrape when the torrent lists one and it
   // responds ("tracker" — the decentralized, more trustworthy source),
@@ -95,10 +96,10 @@ export function TorrentCard({ listing }: Props) {
         <span title={listing.infohash}>{shortHash(listing.infohash)}</span>
       </div>
       <div className="card-actions">
-        {listing.source && (
+        {sourceUrl && (
           <a
             className="btn"
-            href={`https://${listing.source}`}
+            href={`https://${sourceUrl}`}
             target="_blank"
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}

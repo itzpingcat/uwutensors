@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFilteredListings } from "../hooks/useFilteredListings";
 import { usePumpPolling } from "../hooks/usePumpPolling";
 import { useSeederCount, usePumpFallbackSeederInfo } from "../hooks/useSeederCount";
@@ -48,7 +48,11 @@ export function CatalogGrid({ onPublished, onRequireLogin }: Props) {
     setAddOpen(true);
   }
 
-  usePumpPolling(listings.map((l) => l.infohash));
+  // Memoized so the hook below sees a stable array identity — only real
+  // store updates (a new/updated listing) change it, not re-renders.
+  const visibleInfohashes = useMemo(() => listings.map((l) => l.infohash), [listings]);
+
+  usePumpPolling(visibleInfohashes);
   useSeederCount(listings);
   usePumpFallbackSeederInfo();
   useNip05Verification(Array.from(allListings.values()));

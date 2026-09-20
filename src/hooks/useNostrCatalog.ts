@@ -125,8 +125,11 @@ function handleEvent(event: NostrEvent) {
       break;
     }
     case KIND.LABEL: {
+      // Store the label author alongside the approved ids — the filter
+      // pipeline only counts approvals from curators on the user's
+      // allowlist, since anyone can publish a kind 1985 approving anything.
       for (const id of parseApprovalLabel(event, LABEL_NAMESPACE)) {
-        store.addApprovedId(id);
+        store.addApprovedId(event.pubkey, id);
       }
       break;
     }

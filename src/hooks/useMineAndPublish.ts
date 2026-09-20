@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { RelayPool } from "../nostr/relayPool";
 import { mineAndPublish, POW_DURATION_MS } from "../nostr/submit";
-import { formatPowLabel } from "../components/PowProgressBar";
+import { formatPowLabel } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
 import type { NostrEvent } from "../types";
 

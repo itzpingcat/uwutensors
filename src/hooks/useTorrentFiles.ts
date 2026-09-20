@@ -21,19 +21,33 @@ interface FilesState {
  * than refusing to show anything, same spirit as the magnet flow.
  */
 export function useTorrentFiles(listing: TorrentListing) {
+  // `listing.urls` is the same array object for the life of the listing (the
+  // store only replaces the object on a newer event), so depending on it
+  // directly is safe — no join-key gymnastics.
+  const urls = listing.urls;
+  // The deps that define "this listing's file fetch".
+  const fetchKey = `${listing.infohash}|${urls.join(",")}|${listing.torrentSha256 ?? ""}|${listing.torrentSize ?? ""}`;
+  // A listing with no mirrors is an error unconditionally — derived during
+  // render, not setState'd in the effect.
+  const noUrls = urls.length === 0;
+
   const [state, setState] = useState<FilesState>({ status: "idle", files: [], verified: false });
+  // Reset to loading during render when the fetch key changes (React's
+  // documented "adjust state when a prop changes" pattern) instead of
+  // calling setState synchronously at the top of the effect.
+  const [prevKey, setPrevKey] = useState(fetchKey);
+  if (prevKey !== fetchKey) {
+    setPrevKey(fetchKey);
+    setState({ status: "loading", files: [], verified: false });
+  }
 
   useEffect(() => {
-    if (listing.urls.length === 0) {
-      setState({ status: "error", files: [], error: "No .torrent file URL available for this listing.", verified: false });
-      return;
-    }
+    if (noUrls) return;
     let cancelled = false;
-    setState({ status: "loading", files: [], verified: false });
 
     (async () => {
       try {
-        const result = await fetchAndVerifyTorrent(listing.urls, listing.torrentSha256, listing.torrentSize);
+        const result = await fetchAndVerifyTorrent(urls, listing.torrentSha256, listing.torrentSize);
         if (cancelled) return;
         const decoded = decodeBencode(result.bytes);
         const files = extractTorrentFiles(decoded);
@@ -52,7 +66,10 @@ export function useTorrentFiles(listing: TorrentListing) {
     return () => {
       cancelled = true;
     };
-  }, [listing.infohash, listing.urls.join(","), listing.torrentSha256, listing.torrentSize]);
+  }, [fetchKey, noUrls, urls, listing.torrentSha256, listing.torrentSize]);
 
+  if (noUrls) {
+    return { status: "error", files: [], error: "No .torrent file URL available for this listing.", verified: false } as FilesState;
+  }
   return state;
 }

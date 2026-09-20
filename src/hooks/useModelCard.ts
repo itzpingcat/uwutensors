@@ -16,27 +16,32 @@ export interface ModelCardState {
 }
 
 export function useModelCard(listing: TorrentListing): ModelCardState {
+  const cardUrl = listing.card;
+  const repoId = listing.repoId;
+  const hasSource = Boolean(cardUrl || repoId);
+  // The deps that define "this listing's card fetch" — the state key the
+  // render-time reset below compares against.
+  const fetchKey = `${cardUrl ?? ""}|${repoId ?? ""}|${listing.commitSha ?? ""}|${listing.version ?? ""}`;
+
   const [state, setState] = useState<ModelCardState>({ status: "idle" });
+  // Reset to loading during render when the fetch key changes (React's
+  // documented "adjust state when a prop changes" pattern) instead of
+  // calling setState synchronously at the top of the effect.
+  const [prevKey, setPrevKey] = useState(fetchKey);
+  if (prevKey !== fetchKey) {
+    setPrevKey(fetchKey);
+    setState({ status: "loading" });
+  }
 
   useEffect(() => {
     // uwutensors-v1's own `card` tag (a Blossom-hosted README) is the
     // Nostr-native source of truth once a listing has one — it doesn't
     // depend on HuggingFace existing at all. Only fall back to fetching
     // HF's README directly for legacy listings that predate this field.
-    const cardUrl = listing.card;
-    const fallbackRepoId = !cardUrl ? listing.repoId : undefined;
-    if (!cardUrl && !fallbackRepoId) {
-      setState({ status: "not-found" });
-      return;
-    }
+    if (!cardUrl && !repoId) return;
     let cancelled = false;
-    setState({ status: "loading" });
 
-    const url = cardUrl
-      ? cardUrl
-      : `https://huggingface.co/${fallbackRepoId}/raw/${encodeURIComponent(
-          listing.commitSha || listing.version || "main"
-        )}/README.md`;
+    const url = cardUrl ?? hfReadmeUrl(repoId ?? "", listing.commitSha || listing.version || "main");
 
     (async () => {
       try {
@@ -62,7 +67,15 @@ export function useModelCard(listing: TorrentListing): ModelCardState {
     return () => {
       cancelled = true;
     };
-  }, [listing.card, listing.repoId, listing.commitSha, listing.version]);
+  }, [fetchKey, cardUrl, repoId, listing.commitSha, listing.version]);
 
+  if (!hasSource) return { status: "not-found" };
   return state;
+}
+
+/** HF repo README at a specific revision, with repoId/revision path-encoded
+ *  so a crafted listing tag can't rewrite the URL path. */
+function hfReadmeUrl(repoId: string, revision: string): string {
+  const encodedRepo = repoId.split("/").map(encodeURIComponent).join("/");
+  return `https://huggingface.co/${encodedRepo}/raw/${encodeURIComponent(revision)}/README.md`;
 }

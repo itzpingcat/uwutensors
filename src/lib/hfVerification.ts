@@ -35,7 +35,10 @@ export async function fetchHfFileTree(
   repoId: string,
   revision: string
 ): Promise<HfFileEntry[]> {
-  const url = `${HF_API_BASE}/${repoId}/tree/${encodeURIComponent(revision)}?recursive=true`;
+  // repoId comes from listing tags (arbitrary text) — encode each segment so
+  // a crafted value can't rewrite the API path, and revision likewise.
+  const encodedRepo = repoId.split("/").map(encodeURIComponent).join("/");
+  const url = `${HF_API_BASE}/${encodedRepo}/tree/${encodeURIComponent(revision)}?recursive=true`;
   const resp = await fetch(url);
   if (!resp.ok) {
     throw new Error(`HF tree fetch failed: ${resp.status} ${resp.statusText}`);
@@ -56,8 +59,18 @@ export async function fetchHfFileTree(
 
 /** SHA256 of raw bytes, hex-encoded. Used for LFS-tracked files. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes.buffer as ArrayBuffer);
+  const digest = await digestBytes("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * digest() over the view itself, never over bytes.buffer: a Uint8Array
+ * subarray shares (but is offset into) a larger underlying buffer, and
+ * hashing .buffer would cover the wrong byte range. The cast only satisfies
+ * TS's narrow BufferSource typing for Uint8Array<ArrayBufferLike>.
+ */
+function digestBytes(algo: "SHA-256" | "SHA-1", bytes: Uint8Array): Promise<ArrayBuffer> {
+  return crypto.subtle.digest(algo, bytes as unknown as ArrayBuffer);
 }
 
 /**
@@ -69,7 +82,7 @@ export async function gitBlobSha1Hex(bytes: Uint8Array): Promise<string> {
   const combined = new Uint8Array(header.length + bytes.length);
   combined.set(header, 0);
   combined.set(bytes, header.length);
-  const digest = await crypto.subtle.digest("SHA-1", combined.buffer as ArrayBuffer);
+  const digest = await digestBytes("SHA-1", combined);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
