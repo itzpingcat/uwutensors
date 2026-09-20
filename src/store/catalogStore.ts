@@ -11,7 +11,12 @@ import type {
 
 interface CatalogState {
   listings: Map<string, TorrentListing>; // keyed by infohash
-  approvedEventIds: Set<string>; // 30099 ids vouched-for via kind 1985 labels
+  // 30099 event ids vouched-for via kind 1985 NIP-32 labels, keyed by the
+  // label event's AUTHOR pubkey. Keeping the author lets the filter pipeline
+  // gate approvals on trusted curators (allowlist) — anyone can publish a
+  // kind 1985 approving anything, so approval counts only from curators the
+  // user actually trusts.
+  approvalsByCurator: Map<string, Set<string>>;
   modelRequests: ModelRequest[];
   seederRequests: SeederRequest[];
   pumpStatus: Map<string, PumpStatus>; // keyed by infohash
@@ -26,7 +31,7 @@ interface CatalogState {
   pumpHealth: "unknown" | "available" | "failed";
 
   upsertListing: (listing: TorrentListing) => void;
-  addApprovedId: (id: string) => void;
+  addApprovedId: (curatorPubkey: string, eventId: string) => void;
   addModelRequest: (req: ModelRequest) => void;
   addSeederRequest: (req: SeederRequest) => void;
   setPumpStatus: (status: PumpStatus) => void;
@@ -43,7 +48,7 @@ interface CatalogState {
 
 export const useCatalogStore = create<CatalogState>((set) => ({
   listings: new Map(),
-  approvedEventIds: new Set(),
+  approvalsByCurator: new Map(),
   modelRequests: [],
   seederRequests: [],
   pumpStatus: new Map(),
@@ -66,12 +71,14 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       return { listings: next };
     }),
 
-  addApprovedId: (id) =>
+  addApprovedId: (curatorPubkey, eventId) =>
     set((s) => {
-      if (s.approvedEventIds.has(id)) return s;
-      const next = new Set(s.approvedEventIds);
-      next.add(id);
-      return { approvedEventIds: next };
+      if (s.approvalsByCurator.get(curatorPubkey)?.has(eventId)) return s;
+      const next = new Map(s.approvalsByCurator);
+      const cur = next.get(curatorPubkey) ?? new Set<string>();
+      cur.add(eventId);
+      next.set(curatorPubkey, cur);
+      return { approvalsByCurator: next };
     }),
 
   addModelRequest: (req) => set((s) => ({ modelRequests: [...s.modelRequests, req] })),
@@ -118,7 +125,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   reset: () =>
     set({
       listings: new Map(),
-      approvedEventIds: new Set(),
+      approvalsByCurator: new Map(),
       modelRequests: [],
       seederRequests: [],
       pumpStatus: new Map(),

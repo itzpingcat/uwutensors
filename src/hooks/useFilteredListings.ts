@@ -23,10 +23,20 @@ export function useFilteredListings() {
   const profiles = useCatalogStore((s) => s.profiles);
   const mutedPubkeys = useCatalogStore((s) => s.mutedPubkeys);
   const pumpStatus = useCatalogStore((s) => s.pumpStatus);
+  const approvalsByCurator = useCatalogStore((s) => s.approvalsByCurator);
   const filterSettings = useSettingsStore((s) => s.settings.filters);
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
 
   const results = useMemo(() => {
+    // Trusted curators = the allowlist itself (same semantics as
+    // checkAllowlist: enabled AND non-empty). A listing is curator-approved
+    // when any trusted curator published a kind 1985 label approving its
+    // event id — labels from anyone else never count, since kind 1985 can
+    // be published by anyone approving anything.
+    const trustedCurators = filterSettings.allowlist.enabled
+      ? filterSettings.allowlist.pubkeys
+      : [];
+
     const all = Array.from(listings.values());
     const results = all.filter(
       (listing) =>
@@ -56,6 +66,9 @@ export function useFilteredListings() {
       // whether or not a profile was actually found.
       const profile = profiles.get(listing.event.pubkey);
       const profileResolved = nip05Verified.has(listing.event.pubkey);
+      const isApproved =
+        trustedCurators.length > 0 &&
+        trustedCurators.some((pk) => approvalsByCurator.get(pk)?.has(listing.event.id));
       const { visible } = evaluateListing(listing, filterSettings, {
         // See useNip05Verification.ts — this Map is what actually gets
         // populated now; before it existed, nothing ever set
@@ -80,10 +93,11 @@ export function useFilteredListings() {
         hasProfilePicture: profileResolved ? !!profile?.picture : undefined,
         hasProfileName: profileResolved ? !!(profile?.displayName || profile?.name) : undefined,
         hasProfileDescription: profileResolved ? !!profile?.about : undefined,
+        isApproved,
       });
       return visible;
     }
-  }, [listings, filters, filterSettings, nip05Verified, profiles, mutedPubkeys, pumpStatus]);
+  }, [listings, filters, filterSettings, nip05Verified, profiles, mutedPubkeys, pumpStatus, approvalsByCurator]);
 
   const totalSize = useMemo(() => results.reduce((sum, l) => sum + l.totalSize, 0), [results]);
 

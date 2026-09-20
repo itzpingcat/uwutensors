@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { nip19 } from "nostr-tools";
 import type { TorrentListing } from "../types";
-import { humanSize, shortHash } from "../lib/format";
+import { humanSize, shortHash, normalizeSourceHost } from "../lib/format";
 import { fetchAndVerifyTorrent, magnetWithVerifiedSource } from "../lib/torrentDownload";
 import { useCatalogStore } from "../store/catalogStore";
 import { useProfile } from "../hooks/useProfile";
@@ -104,6 +104,7 @@ export function TorrentOverview({ listing, onPublished }: Props) {
   const webseedCount = listing.webseeds.length;
   const downloads = pump?.downloads ?? 0;
   const noSeeders = seederCount === 0;
+  const sourceUrl = listing.source ? normalizeSourceHost(listing.source) : null;
 
   let seedLine = `${webseedCount} web seed${webseedCount !== 1 ? "s" : ""}`;
   if (seederCount > 0) {
@@ -215,12 +216,12 @@ export function TorrentOverview({ listing, onPublished }: Props) {
             <dd>{listing.torrentCreatedAt}</dd>
           </>
         )}
-        {listing.source && (
+        {listing.source && sourceUrl && (
           <>
             <dt>Source</dt>
             <dd>
-              <a href={`https://${listing.source}`} target="_blank" rel="noreferrer">
-                {listing.source}
+              <a href={`https://${sourceUrl}`} target="_blank" rel="noreferrer">
+                {sourceUrl}
               </a>
             </dd>
           </>

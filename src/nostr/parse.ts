@@ -51,6 +51,10 @@ function parseV1Listing(event: NostrEvent): TorrentListing | null {
   const typeStr = tagVal(event.tags, "type");
   if (!infohash || !magnet || !name || !sizeStr || !torrentSha256 || !typeStr) return null;
   if (!RECOGNIZED_LISTING_TYPES.includes(typeStr as ListingType)) return null;
+  // A non-numeric/garbage size tag would otherwise become NaN totalSize,
+  // poisoning the grid's total-size sum, size sorts, and humanSize display.
+  const totalSize = Number(sizeStr);
+  if (!Number.isFinite(totalSize) || totalSize < 0) return null;
 
   return {
     event,
@@ -58,7 +62,7 @@ function parseV1Listing(event: NostrEvent): TorrentListing | null {
     infohash,
     magnet,
     name,
-    totalSize: Number(sizeStr),
+    totalSize,
     torrentSha256,
     type: typeStr as ListingType,
     pieces: parsePieceLayout(tagVal(event.tags, "pieces")),
@@ -105,6 +109,10 @@ function convertLegacyListing(event: NostrEvent): TorrentListing | null {
   const urls = tagVals(event.tags, "url");
   const hasPieceInfo = legacyPieces !== undefined && legacyPieceLength !== undefined;
   if (!hasPieceInfo && urls.length === 0) return null; // insufficient data — reject
+  // Same NaN guard as parseV1Listing — a garbage size tag must not reach
+  // the grid's size math.
+  const totalSize = Number(sizeStr);
+  if (!Number.isFinite(totalSize) || totalSize < 0) return null;
 
   return {
     event,
@@ -112,7 +120,7 @@ function convertLegacyListing(event: NostrEvent): TorrentListing | null {
     infohash,
     magnet,
     name,
-    totalSize: Number(sizeStr),
+    totalSize,
     torrentSha256,
     type: "model", // the only thing the legacy schema ever published
     pieces: hasPieceInfo ? { count: legacyPieces!, length: legacyPieceLength! } : undefined,

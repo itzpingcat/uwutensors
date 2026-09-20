@@ -15,9 +15,3 @@ export function PowProgressBar({ active, pct, label }: Props) {
     </div>
   );
 }
-
-export function formatPowLabel(pow: number, hashes: number, elapsedMs: number, durationMs: number): string {
-  const secsLeft = Math.max(0, Math.ceil((durationMs - elapsedMs) / 1000));
-  const rate = (hashes / Math.max(1, elapsedMs / 1000)).toFixed(0);
-  return `best: ${pow} leading-zero bits · ${rate} h/s · ${secsLeft}s left`;
-}

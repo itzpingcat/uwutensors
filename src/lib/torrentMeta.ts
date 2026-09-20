@@ -74,13 +74,19 @@ function encodeBencode(value: BencodeValue): Uint8Array {
   return out;
 }
 
+/** digest() over the view itself (honoring byteOffset/length) — see
+ *  hfVerification.ts's digestBytes for why .buffer is never hashed directly. */
+function digestBytes(algo: "SHA-256" | "SHA-1", bytes: Uint8Array): Promise<ArrayBuffer> {
+  return crypto.subtle.digest(algo, bytes as unknown as ArrayBuffer);
+}
+
 async function sha1Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-1", bytes.buffer as ArrayBuffer);
+  const digest = await digestBytes("SHA-1", bytes);
   return bytesToHex(new Uint8Array(digest));
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes.buffer as ArrayBuffer);
+  const digest = await digestBytes("SHA-256", bytes);
   return bytesToHex(new Uint8Array(digest));
 }
 

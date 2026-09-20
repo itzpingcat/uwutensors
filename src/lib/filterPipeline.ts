@@ -33,6 +33,13 @@ export interface ListingTrustContext {
   hasProfilePicture?: boolean; // resolved elsewhere from the author's kind 0 — undefined = profile not fetched yet
   hasProfileName?: boolean; // same, for name/display_name
   hasProfileDescription?: boolean; // same, for kind 0's `about` field
+  /**
+   * The listing's event id was approved via a kind 1985 NIP-32 label issued
+   * by a curator the user trusts (on the allowlist) — see useFilteredListings,
+   * which is what does that gating. An approval is a provenance signal of the
+   * same strength as an allowlist pass, so it earns visibility on its own.
+   */
+  isApproved?: boolean;
 }
 
 export interface FilterResult {
@@ -112,10 +119,12 @@ export function evaluateListing(
   settings: FilterSettings,
   ctx: ListingTrustContext
 ): FilterResult {
-  // The allowlist is an independent override: a listed publisher is visible
-  // immediately, but not being listed does not hide an otherwise trustworthy
-  // listing. It is deliberately not included in the tier count below.
+  // Allowlist and curator-approval are independent positive overrides: a
+  // listed publisher or curator-approved listing is visible immediately,
+  // but NOT being listed/approved does not hide an otherwise trustworthy
+  // listing. Neither is included in the tier count below.
   const allowlistResult = checkAllowlist(listing.event, settings.allowlist);
+  const approved = ctx.isApproved === true;
 
   const checks: Array<[string, boolean | undefined]> = [
     ["nip05", checkNip05(settings, ctx)],
@@ -136,10 +145,19 @@ export function evaluateListing(
     else failedTiers.push(name);
   }
 
-  // An allowlist pass earns visibility on its own, but a failed allowlist
-  // does not veto the ordinary tier calculation.
-  if (allowlistResult === true) {
-    return { visible: true, passedTiers: ["allowlist", ...passedTiers], failedTiers, skippedTiers };
+  // An allowlist pass or curator approval earns visibility on its own, but
+  // a failed allowlist does not veto the ordinary tier calculation.
+  if (allowlistResult === true || approved) {
+    return {
+      visible: true,
+      passedTiers: [
+        ...(allowlistResult === true ? ["allowlist"] : []),
+        ...(approved ? ["approval"] : []),
+        ...passedTiers,
+      ],
+      failedTiers,
+      skippedTiers,
+    };
   }
 
   const evaluated = passedTiers.length + failedTiers.length;

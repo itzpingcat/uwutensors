@@ -76,6 +76,12 @@ export function useNip05Verification(listings: TorrentListing[]) {
               // real failure.
               continue;
             }
+            // withTimeout matters here, not just for latency: pool.fetchEvent
+            // (nostr-tools' SimplePool.get) can hang indefinitely on a relay
+            // that never sends EOSE, and with only CONCURRENCY workers each
+            // hang permanently starves verification for every author queued
+            // behind it (same class of bug useProfile.ts documents for its
+            // own fetches).
             const event = await withTimeout(
               pool.fetchEvent({ kinds: [KIND.METADATA], authors: [pubkey] }),
               PROFILE_FETCH_TIMEOUT_MS
@@ -104,6 +110,11 @@ export function useNip05Verification(listings: TorrentListing[]) {
 
           const verified = await verifyNip05(profile.nip05, pubkey);
           if (!cancelled) setNip05Verified(pubkey, verified);
+        } catch {
+          // A per-author failure must not kill this worker loop (it would
+          // reject Promise.all with no handler and leave every later
+          // candidate never verified) — treat it the same as a fetch
+          // failure: this author just stays unresolved this pass.
         } finally {
           inFlightRef.current.delete(pubkey);
         }
@@ -111,7 +122,9 @@ export function useNip05Verification(listings: TorrentListing[]) {
     }
 
     const workers = Array.from({ length: Math.min(CONCURRENCY, candidates.length) }, () => worker());
-    Promise.all(workers);
+    // Workers can no longer reject (try/catch above), but keep the catch so
+    // an unexpected throw still isn't an unhandled rejection.
+    Promise.all(workers).catch(() => undefined);
 
     return () => {
       cancelled = true;

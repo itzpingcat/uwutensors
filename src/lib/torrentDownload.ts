@@ -25,6 +25,16 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Hostname for error messages; listing urls are arbitrary tag values and
+ *  can be malformed, so never let new URL() throw its way out of the loop. */
+function safeHost(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url.slice(0, 32);
+  }
+}
+
 export async function fetchAndVerifyTorrent(
   urls: string[],
   expectedSha256: string | undefined,
@@ -38,17 +48,17 @@ export async function fetchAndVerifyTorrent(
     try {
       const resp = await fetch(url);
       if (!resp.ok) {
-        errors.push(`${new URL(url).hostname}: HTTP ${resp.status}`);
+        errors.push(`${safeHost(url)}: HTTP ${resp.status}`);
         continue;
       }
       buf = await resp.arrayBuffer();
     } catch {
-      errors.push(`${new URL(url).hostname}: fetch failed`);
+      errors.push(`${safeHost(url)}: fetch failed`);
       continue;
     }
 
     if (expectedSize && buf.byteLength !== expectedSize) {
-      mismatches.push(`${new URL(url).hostname}: size ${buf.byteLength} != ${expectedSize}`);
+      mismatches.push(`${safeHost(url)}: size ${buf.byteLength} != ${expectedSize}`);
       continue;
     }
 
@@ -62,7 +72,7 @@ export async function fetchAndVerifyTorrent(
     if (hash === expectedSha256) {
       return { bytes: buf, verifiedSha256: hash, sourceUrl: url };
     }
-    mismatches.push(`${new URL(url).hostname}: ${hash.slice(0, 8)}…`);
+    mismatches.push(`${safeHost(url)}: ${hash.slice(0, 8)}…`);
   }
 
   const reason = mismatches.length

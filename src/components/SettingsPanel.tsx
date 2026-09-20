@@ -403,9 +403,9 @@ export function SettingsPanel({
             that's still waiting on a network lookup, never counts toward the total or the
             threshold). Set this to 1 for the old "ANY" behavior, or to a high number (it's
             automatically capped at however many tiers are actually enabled) for the old "ALL"
-            behavior. Allowlist below is separate and always decisive on its own: if it's enabled
-            and non-empty, being on it always shows a listing, and NOT being on it always hides
-            one — regardless of this threshold or how the other tiers score it.
+            behavior. Allowlist below is a separate one-way override: if it's enabled and
+            non-empty, being on it always shows a listing — but NOT being on it does not hide
+            one; the listing still gets judged normally by the threshold and tiers above.
           </p>
 
           <div className="setting-row">
